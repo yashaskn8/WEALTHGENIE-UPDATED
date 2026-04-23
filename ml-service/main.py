@@ -1,6 +1,6 @@
 """
 WealthGenie ML Microservice — FastAPI
-Serves RandomForest predictions on port 8000.
+Serves RandomForest predictions with SHAP explainability on port 8000.
 """
 
 import os
@@ -9,8 +9,9 @@ import joblib
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from schemas import PredictRequest, PredictResponse, HealthResponse
+from explainer import load_explainer
 
-app = FastAPI(title="WealthGenie ML Service", version="1.0.0")
+app = FastAPI(title="WealthGenie ML Service", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,23 +30,31 @@ model = None
 label_encoder = None
 dt_model = None
 model_accuracy = None
+explainer_instance = None
 
 
 @app.on_event("startup")
 def load_models():
-    global model, label_encoder, dt_model
+    global model, label_encoder, dt_model, explainer_instance
     try:
         model = joblib.load(MODEL_PATH)
         label_encoder = joblib.load(LE_PATH)
-        print(f"✅ RandomForest model loaded from {MODEL_PATH}")
+        print(f"[OK] RandomForest model loaded from {MODEL_PATH}")
     except FileNotFoundError:
-        print("⚠️  Model not found. Run: python model/train.py first")
+        print("[WARN] Model not found. Run: python model/train.py first")
 
     try:
         dt_model = joblib.load(DT_PATH)
-        print(f"✅ DecisionTree model loaded from {DT_PATH}")
+        print(f"[OK] DecisionTree model loaded from {DT_PATH}")
     except FileNotFoundError:
         pass
+
+    # Initialize SHAP explainer
+    explainer_instance = load_explainer()
+    if explainer_instance:
+        print("[OK] SHAP Explainer initialized")
+    else:
+        print("[WARN] SHAP Explainer not available, predictions will work without explanations")
 
 
 RISK_ENCODING = {
@@ -107,6 +116,15 @@ def predict(req: PredictRequest):
         req.age, req.annual_income, req.risk_category
     )
 
+    # Generate SHAP explanation
+    explanation = None
+    if explainer_instance:
+        try:
+            explanation_raw = explainer_instance.explain(features)
+            explanation = explanation_raw
+        except Exception as e:
+            print(f"[WARN] SHAP explanation failed: {e}")
+
     return PredictResponse(
         primary=primary,
         secondary=secondary,
@@ -114,6 +132,7 @@ def predict(req: PredictRequest):
         confidence_scores=confidence_scores,
         decision_path=decision_path,
         model_used="RandomForest",
+        explanation=explanation,
     )
 
 
@@ -122,7 +141,7 @@ def health():
     status = "ok" if model is not None else "model_not_loaded"
     return HealthResponse(
         status=status,
-        model_version="1.0",
+        model_version="2.0",
         model_accuracy=model_accuracy,
     )
 

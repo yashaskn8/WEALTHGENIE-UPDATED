@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, Target, BarChart3, TrendingUp, Calculator, Search, User, Bell, HelpCircle, ChevronLeft, ChevronRight, FileText, Gauge, PieChart } from 'lucide-react';
+import { Home, Target, BarChart3, TrendingUp, Calculator, Search, User, Bell, HelpCircle, ChevronLeft, ChevronRight, FileText, Gauge, PieChart, Crosshair } from 'lucide-react';
 import { Sparkles } from 'lucide-react';
 import './Sidebar.css';
 
@@ -17,6 +17,7 @@ const NAV_GROUPS = [
     items: [
       { id: 'rebalancer', label: 'Rebalancer', icon: BarChart3 },
       { id: 'sip-planner', label: 'SIP Step-Up', icon: TrendingUp },
+      { id: 'goal-planner', label: 'Goal Planner', icon: Crosshair },
       { id: 'allocation', label: 'Allocation Planner', icon: PieChart },
       { id: 'post-tax', label: 'Post-Tax Analysis', icon: FileText },
       { id: 'tax-optimizer', label: 'Tax Optimizer', icon: Calculator },

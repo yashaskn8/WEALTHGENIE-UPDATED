@@ -9,7 +9,7 @@ function hashProfile(profile) {
 }
 
 export async function generateAdvisory(userContext) {
-  const { age, annualIncome, monthlySavings, taxSlab, riskCategory, instruments, horizon } = userContext;
+  const { age, annualIncome, monthlySavings, taxSlab, riskCategory, instruments, horizon, shapExplanation } = userContext;
   const cacheKey = `advisory:${hashProfile(userContext)}`;
 
   // Check Redis cache (1 hour TTL)
@@ -17,6 +17,15 @@ export async function generateAdvisory(userContext) {
   if (cached) return cached;
 
   const instrumentList = instruments.map(i => `${i.name} (${i.type}) — post-tax return: ${i.postTaxReturn}%`).join('\n  ');
+
+  // Build SHAP context block if available
+  let shapContext = '';
+  if (shapExplanation && shapExplanation.feature_contributions) {
+    const contributions = shapExplanation.feature_contributions
+      .map(c => `${c.display_name}: ${c.direction} recommendation by ${c.magnitude}`)
+      .join(', ');
+    shapContext = `\n\nML Model Reasoning:\nThe AI model's top reason for this recommendation was: ${shapExplanation.top_reason}\nThe feature contributions in order of importance were: ${contributions}.\nIncorporate this reasoning naturally into your advisory paragraph. Do not use technical jargon like 'SHAP values'. Write as if you are a human financial advisor explaining your logic.`;
+  }
 
   const prompt = `You are a certified Indian financial advisor. Based on the following investor profile, write a 3-paragraph advisory note (under 300 words total):
 
@@ -30,7 +39,7 @@ Investor Profile:
 
 Top 3 Recommended Instruments:
   ${instrumentList}
-
+${shapContext}
 Instructions:
 Paragraph 1: Explain WHY these specific instruments suit this investor's profile (age, income, risk tolerance).
 Paragraph 2: Highlight 2-3 KEY RISKS the investor should be aware of.

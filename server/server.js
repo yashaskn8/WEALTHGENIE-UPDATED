@@ -11,6 +11,8 @@ import profileRoutes from './routes/profile.js';
 import recommendRoutes from './routes/recommend.js';
 import instrumentRoutes from './routes/instruments.js';
 import projectionRoutes from './routes/projection.js';
+import montecarloRoutes from './routes/montecarlo.js';
+import goalRoutes from './routes/goals.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -27,10 +29,12 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/recommend', recommendRoutes);
 app.use('/api/instruments', instrumentRoutes);
 app.use('/api/projection', projectionRoutes);
+app.use('/api/montecarlo', montecarloRoutes);
+app.use('/api/goals', goalRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'WealthGenie API' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'WealthGenie API v2.0' });
 });
 
 // Error handler
@@ -40,7 +44,7 @@ app.use(errorHandler);
 const start = async () => {
   await connectDB();
   await connectRedis();
-  app.listen(PORT, () => console.log(`🚀 WealthGenie API running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`WealthGenie API v2.0 running on port ${PORT}`));
 };
 
 start().catch(err => { console.error('Failed to start server:', err); process.exit(1); });

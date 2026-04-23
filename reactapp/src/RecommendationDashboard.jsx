@@ -3,6 +3,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { ChevronRight, ChevronDown, Filter, Info, Shield, TrendingUp, Zap } from 'lucide-react';
 import { investmentDatabase, RISK_COLORS, CHART_COLORS } from './investmentDatabase';
 import { getEligibleInvestments, getWhy, computePostTaxReturn } from './recommendationEngine';
+import ExplainabilityPanel from './components/ExplainabilityPanel';
 import './Dashboard.css';
 
 const CATEGORY_COLORS = {
@@ -16,7 +17,7 @@ const CATEGORY_COLORS = {
 };
 const DEFAULT_COLORS = ['#06b6d4', '#10b981', '#dfbd69', '#8b5cf6', '#f43f5e', '#0ea5e9', '#f97316', '#ec4899'];
 
-const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, onRebalance, isLoading: isLoadingProp }) => {
+const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, onRebalance, isLoading: isLoadingProp, explanation }) => {
   const defaultHorizon = userProfile?.investment_horizon || 15;
   const [horizon, setHorizon] = useState(defaultHorizon);
   const [inflationAdjusted, setInflationAdjusted] = useState(false);
@@ -625,6 +626,16 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
               })}
             </div>
           </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════
+            SECTION 9.5: SHAP EXPLAINABILITY PANEL
+            ═══════════════════════════════════════════════════════════ */}
+        {explanation && (
+          <ExplainabilityPanel
+            explanation={explanation}
+            instrumentName={recommendations?.[0]?.name || recommendations?.[0]?.id}
+          />
         )}
 
         {/* ═══════════════════════════════════════════════════════════

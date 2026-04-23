@@ -85,7 +85,40 @@ export async function getProjections(profileId, instruments, monthlyInvestment, 
   });
 }
 
+// ─── MONTE CARLO ─────────────────────────────────────────
+export async function runMonteCarlo(instrument, monthlyInvestment, years, targetAmount, postTaxRate) {
+  return request('POST', '/montecarlo/montecarlo', {
+    instrument,
+    monthly_investment: monthlyInvestment,
+    years,
+    target_amount: targetAmount || null,
+    post_tax_rate: postTaxRate || null,
+  });
+}
+
+// ─── GOALS ───────────────────────────────────────────────
+export async function createGoal(goalData) {
+  return request('POST', '/goals/create', goalData);
+}
+
+export async function getGoals() {
+  return request('GET', '/goals');
+}
+
+export async function deleteGoal(goalId) {
+  return request('DELETE', `/goals/${goalId}`);
+}
+
 // ─── HEALTH ──────────────────────────────────────────────
 export async function healthCheck() {
   return request('GET', '/health');
 }
+
+// Default export for convenience
+const api = {
+  register, login, setAuthToken, getAuthToken, clearAuthToken,
+  buildProfile, getRecommendations, getInstruments, getProjections,
+  runMonteCarlo, createGoal, getGoals, deleteGoal, healthCheck,
+};
+
+export default api;

@@ -9,6 +9,22 @@ class PredictRequest(BaseModel):
     risk_category: str = Field(..., description="Risk category: Conservative, Conservative-Moderate, Moderate, Moderate-Aggressive, Aggressive")
 
 
+class FeatureContribution(BaseModel):
+    feature: str
+    display_name: str
+    shap_value: float
+    direction: str
+    magnitude: float
+    raw_value: float
+
+
+class Explanation(BaseModel):
+    predicted_class: str
+    confidence: float
+    feature_contributions: List[FeatureContribution]
+    top_reason: str
+
+
 class PredictResponse(BaseModel):
     primary: str
     secondary: str
@@ -16,6 +32,7 @@ class PredictResponse(BaseModel):
     confidence_scores: Dict[str, float]
     decision_path: List[str]
     model_used: Optional[str] = "RandomForest"
+    explanation: Optional[Explanation] = None
 
 
 class HealthResponse(BaseModel):

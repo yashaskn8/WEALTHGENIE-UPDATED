@@ -45,7 +45,7 @@ router.post('/', verifyJWT, async (req, res) => {
       return { ...meta, nominalReturn: meta.nominalRate, postTaxReturn: postTax.effectiveYield, effectiveYield: postTax.effectiveYield };
     });
 
-    // Call Gemini for advisory
+    // Call Gemini for advisory (now with SHAP context)
     const advisory = await generateAdvisory({
       age: profile.age,
       annualIncome: profile.annualIncome,
@@ -54,6 +54,7 @@ router.post('/', verifyJWT, async (req, res) => {
       riskCategory: profile.riskCategory,
       instruments: instruments.map(i => ({ name: i.name, type: i.type, postTaxReturn: i.postTaxReturn })),
       horizon: 10,
+      shapExplanation: mlResult.explanation || null,
     });
 
     // Save recommendation
@@ -73,6 +74,7 @@ router.post('/', verifyJWT, async (req, res) => {
       advisory_text: advisory.text,
       confidence_scores: mlResult.confidence_scores,
       decision_path: mlResult.decision_path,
+      explanation: mlResult.explanation || null,
       ml_fallback: mlResult.fallback || false,
     });
   } catch (err) {

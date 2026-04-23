@@ -22,6 +22,8 @@ import { investmentDatabase } from './investmentDatabase';
 import { generateRecommendations, getEligibleInvestments } from './recommendationEngine';
 import AllocationPlanner from './components/AllocationPlanner';
 import ErrorBoundary from './components/ErrorBoundary';
+import GoalPlanner from './components/GoalPlanner';
+import ExplainabilityPanel from './components/ExplainabilityPanel';
 import * as api from './services/api';
 
 const ProfilePage = () => {
@@ -265,6 +267,7 @@ const DashboardShell = ({ userProfile, onRecalculate }) => {
             userProfile={userProfile}
             recommendations={recommendations}
             isLoading={isLoading}
+            explanation={backendRecs?.explanation || null}
             onRecalculate={onRecalculate}
             onLearnMore={handleLearnMore}
             onExploreAll={() => setShowComparisonTable(true)}
@@ -278,6 +281,8 @@ const DashboardShell = ({ userProfile, onRecalculate }) => {
         return <ErrorBoundary><HealthScoreScreen profile={userProfile} recommendations={recommendations} /></ErrorBoundary>;
       case 'goals':
         return <ErrorBoundary><GoalTracker profile={userProfile} recommendations={recommendations} /></ErrorBoundary>;
+      case 'goal-planner':
+        return <ErrorBoundary><GoalPlanner profile={userProfile} /></ErrorBoundary>;
       case 'rebalancer':
         return (
           <ErrorBoundary>
