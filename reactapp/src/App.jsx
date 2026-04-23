@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import './App.css';
 import logoImg from './assets/logo.png';
@@ -162,17 +162,6 @@ const ProfilePage = () => {
               </div>
             </div>
 
-            {/* Tax Regime Toggle */}
-            <div className="pf-field pf-field-full" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', marginBottom: '24px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: 4 }}>Tax Regime</label>
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Switch to Old Regime to compare</span>
-              </div>
-              <div className="tax-regime-toggle" style={{ display: 'flex', gap: '8px' }}>
-                <button type="button" onClick={() => setTaxRegime('old')} className={`regime-btn ${taxRegime === 'old' ? 'active' : ''}`} style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem', border: '1px solid rgba(255,255,255,0.1)', background: taxRegime === 'old' ? '#334155' : 'transparent', color: taxRegime === 'old' ? '#fff' : '#94a3b8', cursor: 'pointer' }}>Old Regime</button>
-                <button type="button" onClick={() => setTaxRegime('new')} className={`regime-btn ${taxRegime === 'new' ? 'active' : ''}`} style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem', border: '1px solid rgba(255,255,255,0.1)', background: taxRegime === 'new' ? '#0ea5e9' : 'transparent', color: taxRegime === 'new' ? '#fff' : '#94a3b8', cursor: 'pointer' }}>New Regime</button>
-              </div>
-            </div>
 
             {/* Save Button */}
             <button type="submit" className="btn-save-continue">

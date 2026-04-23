@@ -17,13 +17,18 @@ import montecarloRoutes from './routes/montecarlo.js';
 import goalRoutes from './routes/goals.js';
 import marketRoutes from './routes/market.js';
 import taxRoutes from './routes/tax.js';
+import chatRoutes from './routes/chatRoutes.js';
 import { startMarketDataRefreshJobs } from './jobs/marketDataRefresh.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ── Security Headers ─────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: { policy: 'unsafe-none' },
+  contentSecurityPolicy: false,   // Vite dev server injects inline scripts
+}));
 
 // ── CORS ─────────────────────────────────────────────────────────
 app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:3000'], credentials: true }));
@@ -67,6 +72,7 @@ app.use('/api/montecarlo', montecarloRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/tax', taxRoutes);
+app.use('/api/chat', chatRoutes);
 
 // ── Health Check ─────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
@@ -74,7 +80,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     service: 'WealthGenie API v2.1',
-    features: ['SHAP', 'MonteCarlo', 'GoalPlanner', 'LiveMarketData', 'TaxCompare', 'PostTaxCalc', 'RateLimiting'],
+    features: ['SHAP', 'MonteCarlo', 'GoalPlanner', 'LiveMarketData', 'TaxCompare', 'PostTaxCalc', 'RateLimiting', 'GenieChat'],
   });
 });
 

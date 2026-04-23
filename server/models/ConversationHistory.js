@@ -1,0 +1,61 @@
+import mongoose from 'mongoose';
+
+const MessageSchema = new mongoose.Schema({
+  role: {
+    type: String,
+    enum: ['user', 'model'],
+    required: true,
+  },
+  content: {
+    type: String,
+    required: true,
+    maxlength: 8000,
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now,
+  },
+  metadata: {
+    // Populated only for model messages
+    tokens_used: Number,
+    latency_ms: Number,
+    grounded_on_profile: Boolean,
+    disclaimer_appended: Boolean,
+  },
+});
+
+const ConversationHistorySchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true,
+  },
+  profileId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'FinancialProfile',
+    required: true,
+  },
+  session_id: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  messages: [MessageSchema],
+  created_at: { type: Date, default: Date.now },
+  updated_at: { type: Date, default: Date.now },
+  message_count: { type: Number, default: 0 },
+  is_active: { type: Boolean, default: true },
+});
+
+// Auto-update updated_at and message_count on save
+ConversationHistorySchema.pre('save', function (next) {
+  this.updated_at = new Date();
+  this.message_count = this.messages.length;
+  next();
+});
+
+// Index for efficient session retrieval
+ConversationHistorySchema.index({ userId: 1, updated_at: -1 });
+
+export default mongoose.model('ConversationHistory', ConversationHistorySchema);

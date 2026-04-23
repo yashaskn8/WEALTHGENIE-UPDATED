@@ -114,11 +114,25 @@ export async function healthCheck() {
   return request('GET', '/health');
 }
 
+// ─── CHAT (Genie) ────────────────────────────────────────
+export async function sendChatMessage(message, sessionId) {
+  return request('POST', '/chat/message', { message, session_id: sessionId });
+}
+
+export async function getChatHistory(sessionId) {
+  return request('GET', `/chat/history?session_id=${sessionId}&limit=50`);
+}
+
+export async function clearChatSession(sessionId) {
+  return request('DELETE', `/chat/session/${sessionId}`);
+}
+
 // Default export for convenience
 const api = {
   register, login, setAuthToken, getAuthToken, clearAuthToken,
   buildProfile, getRecommendations, getInstruments, getProjections,
   runMonteCarlo, createGoal, getGoals, deleteGoal, healthCheck,
+  sendChatMessage, getChatHistory, clearChatSession,
 };
 
 export default api;

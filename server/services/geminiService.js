@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getCache, setCache } from '../config/redis.js';
 import crypto from 'crypto';
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
 
 function hashProfile(profile) {
   return crypto.createHash('md5').update(JSON.stringify(profile)).digest('hex');

@@ -11,10 +11,18 @@ const connectRedis = async () => {
   try {
     redisClient = createClient({
       url: process.env.REDIS_URL || 'redis://localhost:6379',
+      socket: {
+        connectTimeoutMs: 3000,
+        reconnectStrategy: false,   // Do NOT retry — fail once and move on
+      },
     });
 
+    let errorLogged = false;
     redisClient.on('error', (err) => {
-      console.warn('⚠️  Redis error:', err.message);
+      if (!errorLogged) {
+        console.warn('⚠️  Redis not available — running without cache:', err.message);
+        errorLogged = true;
+      }
       redisAvailable = false;
     });
 
@@ -28,6 +36,7 @@ const connectRedis = async () => {
   } catch (error) {
     console.warn('⚠️  Redis not available — running without cache:', error.message);
     redisAvailable = false;
+    redisClient = null;
   }
 };
 
