@@ -2,9 +2,13 @@
 
 ## AI-Powered Financial Advisory Platform for Indian Retail Investors
 
-WealthGenie is a context-aware, tax-optimized, AI-powered financial advisory web application designed for Indian retail investors. Built as a final-year CSE capstone project at RNSIT, Bengaluru, the platform takes three simple inputs — monthly income, age, and savings capacity — and delivers personalized, post-tax investment recommendations powered by machine learning and Google Gemini AI.
+WealthGenie is a context-aware, tax-optimized, AI-powered financial advisory web application designed for Indian retail investors. Built as a final-year CSE capstone project at RNSIT, Bengaluru, the platform delivers personalized, production-grade investment strategies grounded in machine learning explainability and probabilistic wealth forecasting.
 
-The system implements the complete FY2025-26 Indian tax regime (both New and Old), computes real post-tax returns across 16 investment instruments (FDs, ELSS, Equity MFs, ETFs, Debt MFs, RBI Bonds, G-Secs, PPF, NPS, and more), and generates long-term wealth projections. A Random Forest ML model trained on 5,000 synthetic investor profiles ranks instruments by suitability, while Gemini 1.5 Flash provides plain-English advisory summaries explaining *why* each recommendation fits the user's profile.
+### 🦄 Unicorn Features (Advanced Engineering)
+- **SHAP Explainability Layer**: Uses `shap.TreeExplainer` in Python to provide exact feature-level attribution for every ML recommendation, ensuring total transparency in the AI's decision-making process.
+- **Monte Carlo Simulation Engine**: A high-performance probabilistic engine running 10,000 simulations per instrument using the **Box-Muller transform** to generate normal distribution returns, providing P10 to P90 wealth confidence bands.
+- **Goal-Based Planning**: Automated financial roadmap builder that computes required SIPs via a reverse-compounding formula and returns the **Probability of Success** for specific life goals (Retirement, Home, etc.).
+- **Live Market Data Layer**: Real-time integration with **AMFI (NAV dataset)** and **Yahoo Finance (Index stats)** to automate instrument parameters and volatility coefficients, moving beyond static hardcoded rates.
 
 ---
 
@@ -32,13 +36,12 @@ The system implements the complete FY2025-26 Indian tax regime (both New and Old
 | Layer      | Technology                                      |
 |------------|------------------------------------------------|
 | Frontend   | React 18 + Vite + Recharts + Framer Motion     |
-| Backend    | Node.js 20 + Express.js                         |
+| Backend    | Node.js 20 + Express.js + Redis                 |
 | Database   | MongoDB Atlas (Mongoose ODM)                    |
-| ML Engine  | Python 3.11 + FastAPI + scikit-learn            |
+| ML Engine  | Python 3.11 + FastAPI + SHAP + scikit-learn     |
 | AI Layer   | Google Gemini 1.5 Flash API                     |
 | Auth       | JWT + bcryptjs (12 rounds)                      |
-| Caching    | Redis (24hr TTL for instruments, 1hr for AI)    |
-| Env Mgmt   | dotenv (.env — never committed)                 |
+| Live Data  | AMFI (Public NAV) + Yahoo Finance (Index)       |
 
 ---
 
@@ -214,24 +217,17 @@ Access the app at: **http://localhost:5173**
 
 ## ✨ Features
 
-| Feature                            | Objective |
-|------------------------------------|-----------|
-| Financial Profile Builder          | O1        |
-| FY2025-26 Tax Engine (New + Old)   | O2        |
-| Risk Profiler (Age + Income)       | O1        |
-| Post-Tax Return Calculator         | O2        |
-| ML Instrument Recommendations      | O3        |
-| Gemini AI Advisory Summaries       | O4        |
-| Wealth Projections (5–20yr SIP)    | O5        |
-| Instrument Comparison Dashboard    | O6        |
-| JWT Authentication                 | O1        |
-| Redis Caching (FD rates, AI text)  | O5        |
-| Interactive Recharts Charts        | O6        |
-| Risk Quiz Modal                    | O1        |
-| Tax Regime Comparison              | O2        |
-| Genie Chat (Gemini Q&A)           | O4        |
-| Portfolio Rebalancer               | O6        |
-| Step-Up SIP Planner                | O5        |
+| Feature                            | Category         |
+|------------------------------------|------------------|
+| SHAP Explainability Dashboard      | ML Intelligence  |
+| Monte Carlo Probability Projections| Wealth Analysis  |
+| Goal-Based Success Tracking        | Financial Planning|
+| Live AMFI/Yahoo Market Data Sync   | Real-time Data   |
+| FY2025-26 Tax Engine (New + Old)   | Taxation         |
+| Gemini AI Advisory Generation      | Generative AI    |
+| Portfolio Rebalancer & SIP Planner | Active Management|
+| Multi-Instrument Comparison        | Market Analysis  |
+| Risk Quiz & User Profiling         | Onboarding       |
 
 ---
 
