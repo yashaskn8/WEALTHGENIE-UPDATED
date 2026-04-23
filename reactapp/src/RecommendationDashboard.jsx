@@ -16,16 +16,20 @@ const CATEGORY_COLORS = {
 };
 const DEFAULT_COLORS = ['#06b6d4', '#10b981', '#dfbd69', '#8b5cf6', '#f43f5e', '#0ea5e9', '#f97316', '#ec4899'];
 
-const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, onRebalance }) => {
+const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, onRebalance, isLoading: isLoadingProp }) => {
   const defaultHorizon = userProfile?.investment_horizon || 15;
   const [horizon, setHorizon] = useState(defaultHorizon);
   const [inflationAdjusted, setInflationAdjusted] = useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   
   React.useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, []);
+    if (isLoadingProp !== undefined) {
+      setIsLoading(isLoadingProp);
+    } else {
+      const timer = setTimeout(() => setIsLoading(false), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoadingProp]);
   
   const [riskValue, setRiskValue] = useState(userProfile?.risk_appetite === 'High' ? 8 : userProfile?.risk_appetite === 'Medium' ? 6 : 3);
   const [expandedRows, setExpandedRows] = useState({});
@@ -582,8 +586,12 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
                     </div>
 
                     {/* Score bar */}
+                    <div style={{ marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>ML Confidence</span>
+                      <span style={{ fontSize: '0.7rem', color: rec.color || '#06b6d4' }}>{Math.round((rec.ml_confidence || 0) * 100)}%</span>
+                    </div>
                     <div style={{ height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 2, marginBottom: 12 }}>
-                      <div style={{ height: '100%', width: `${Math.min(100, (rec.score || 0) / 1.2)}%`, background: rec.color || '#06b6d4', borderRadius: 2, transition: 'width 0.5s ease' }} />
+                      <div style={{ height: '100%', width: `${Math.min(100, (rec.ml_confidence || 0) * 100)}%`, background: rec.color || '#06b6d4', borderRadius: 2, transition: 'width 0.5s ease' }} />
                     </div>
 
                     {/* Why recommended */}
@@ -615,6 +623,52 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════
+            SECTION 10: AI ADVISORY CARD — Gemini-generated text
+            ═══════════════════════════════════════════════════════════ */}
+        {recommendations && recommendations[0]?.advisory_text && (
+          <div style={{
+            marginTop: 40, padding: 24,
+            background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(139, 92, 246, 0.1))',
+            border: '1px solid rgba(6, 182, 212, 0.2)',
+            borderRadius: 20, position: 'relative', overflow: 'hidden'
+          }}>
+            <div style={{
+              position: 'absolute', top: -20, right: -20, width: 100, height: 100,
+              background: 'radial-gradient(circle, rgba(6, 182, 212, 0.2) 0%, transparent 70%)',
+              filter: 'blur(20px)'
+            }}></div>
+            
+            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', position: 'relative' }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: 12, background: '#06b6d4',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                boxShadow: '0 0 20px rgba(6, 182, 212, 0.4)'
+              }}>
+                <Zap size={24} color="#fff" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 8, color: '#fff' }}>
+                  Genie's Personal Advisory Summary
+                </h3>
+                <div style={{
+                  fontSize: '1rem', color: '#cbd5e1', lineHeight: 1.7, 
+                  whiteSpace: 'pre-line', fontStyle: 'italic'
+                }}>
+                  {recommendations[0].advisory_text}
+                </div>
+                <div style={{
+                  marginTop: 16, display: 'flex', alignItems: 'center', gap: 8,
+                  fontSize: '0.75rem', color: '#94a3b8'
+                }}>
+                  <Shield size={14} />
+                  Powered by Gemini 1.5 Flash • Analysis based on Indian Tax Code FY 2025-26
+                </div>
+              </div>
             </div>
           </div>
         )}

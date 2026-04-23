@@ -27,3 +27,19 @@ dist-ssr
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Environment files — NEVER commit secrets
+.env
+server/.env
+ml-service/.env
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.venv
+venv
+ml-service/model/model.pkl
+ml-service/model/label_encoder.pkl
+ml-service/model/decision_tree.pkl
+ml-service/data/investment_profiles.csv

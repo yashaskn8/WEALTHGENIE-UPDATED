@@ -22,6 +22,7 @@ import { investmentDatabase } from './investmentDatabase';
 import { generateRecommendations, getEligibleInvestments } from './recommendationEngine';
 import AllocationPlanner from './components/AllocationPlanner';
 import ErrorBoundary from './components/ErrorBoundary';
+import * as api from './services/api';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -42,9 +43,15 @@ const ProfilePage = () => {
     );
   };
 
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setIsComplete(true);
+    try {
+      const response = await api.buildProfile(monthlyIncome, age, monthlySavings, taxRegime);
+      console.log("Profile built:", response);
+      setIsComplete(true);
+    } catch (err) {
+      alert("Error saving profile: " + err.message);
+    }
   };
 
   const userProfilePayload = {
@@ -197,12 +204,49 @@ const DashboardShell = ({ userProfile, onRecalculate }) => {
   const [activePage, setActivePage] = useState('dashboard');
   const [deepDiveInvestment, setDeepDiveInvestment] = useState(null);
   const [showComparisonTable, setShowComparisonTable] = useState(false);
+  const [backendRecs, setBackendRecs] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Generate recommendations from profile
-  const recommendations = generateRecommendations(userProfile);
-
-  // Get eligible investments for compare page
+  // Initial local recommendations as baseline
+  const localRecommendations = generateRecommendations(userProfile);
   const eligibleInvestments = getEligibleInvestments(userProfile);
+
+  useEffect(() => {
+    const fetchBackendData = async () => {
+      try {
+        setIsLoading(true);
+        // Assuming we have a way to get the latest profile ID or we fetch it
+        // For simplicity, we'll fetch recommendations (backend will handle finding the profile)
+        const profileResponse = await api.buildProfile(userProfile.monthly_income, userProfile.age, userProfile.monthly_savings, userProfile.taxRegime);
+        const recResponse = await api.getRecommendations(profileResponse.profileId);
+        setBackendRecs(recResponse);
+      } catch (err) {
+        console.error("Failed to fetch backend recommendations:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchBackendData();
+  }, [userProfile]);
+
+  // Merge backend data with local recommendations for display
+  const recommendations = useMemo(() => {
+    if (!backendRecs) return localRecommendations;
+    
+    // Map backend instruments to local structure or vice versa
+    return localRecommendations.map(lr => {
+      const match = backendRecs.instruments.find(bi => bi.type === lr.id || bi.name === lr.name);
+      if (match) {
+        return {
+          ...lr,
+          rate: match.postTaxReturn,
+          ml_confidence: backendRecs.confidence_scores[match.type] || 0,
+          advisory_text: backendRecs.advisory_text
+        };
+      }
+      return lr;
+    });
+  }, [backendRecs, localRecommendations]);
 
   const handleLearnMore = (investment) => {
     setDeepDiveInvestment(investment);
@@ -220,6 +264,7 @@ const DashboardShell = ({ userProfile, onRecalculate }) => {
           <RecommendationDashboard
             userProfile={userProfile}
             recommendations={recommendations}
+            isLoading={isLoading}
             onRecalculate={onRecalculate}
             onLearnMore={handleLearnMore}
             onExploreAll={() => setShowComparisonTable(true)}
@@ -420,32 +465,33 @@ function AuthPage() {
   };
 
   // ===== Login Submit =====
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     const emailInput = document.getElementById('login-email').value;
     const passwordInput = document.getElementById('login-password').value;
 
-    if (emailInput === 'admin' && passwordInput === 'admin123') {
-      const btn = e.target.querySelector('.btn-primary');
-      const originalText = btn.textContent;
-      btn.textContent = 'Connecting...';
-      btn.style.opacity = '0.8';
-      btn.style.pointerEvents = 'none';
+    const btn = e.target.querySelector('.btn-primary');
+    const originalText = btn.textContent;
+    btn.textContent = 'Authenticating...';
+    btn.style.opacity = '0.8';
+    btn.style.pointerEvents = 'none';
 
-      setTimeout(() => {
-        alert("Welcome to Wealth Genie! Your profile is being prepared.");
-        btn.textContent = originalText;
-        btn.style.opacity = '1';
-        btn.style.pointerEvents = 'auto';
-        navigate('/profile');
-      }, 1500);
-    } else {
-      alert("Invalid credentials. Please use admin / admin123");
+    try {
+      const response = await api.login(emailInput, passwordInput);
+      btn.textContent = originalText;
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
+      navigate('/profile');
+    } catch (err) {
+      btn.textContent = originalText;
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
+      alert(err.message || "Invalid credentials");
     }
   };
 
   // ===== Registration Submit with Full Validation =====
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
 
@@ -475,10 +521,14 @@ function AuthPage() {
     if (Object.keys(errors).length > 0) return;
 
     setIsRegistering(true);
-    setTimeout(() => {
+    try {
+      await api.register(regName, regEmail, regPassword);
       setIsRegistering(false);
       setShowPopup(true);
-    }, 1500);
+    } catch (err) {
+      setIsRegistering(false);
+      alert(err.message || "Registration failed");
+    }
   };
 
   const handlePopupOk = () => {
