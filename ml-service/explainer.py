@@ -152,3 +152,6 @@ def load_explainer():
     except FileNotFoundError:
         print("[WARN] Model files not found for explainer")
         return None
+    except Exception as e:
+        print(f"[ERROR] Failed to load explainer: {e}")
+        return None

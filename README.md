@@ -217,17 +217,24 @@ Access the app at: **http://localhost:5173**
 
 ## ✨ Features
 
-| Feature                            | Category         |
-|------------------------------------|------------------|
-| SHAP Explainability Dashboard      | ML Intelligence  |
-| Monte Carlo Probability Projections| Wealth Analysis  |
-| Goal-Based Success Tracking        | Financial Planning|
-| Live AMFI/Yahoo Market Data Sync   | Real-time Data   |
-| FY2025-26 Tax Engine (New + Old)   | Taxation         |
-| Gemini AI Advisory Generation      | Generative AI    |
-| Portfolio Rebalancer & SIP Planner | Active Management|
-| Multi-Instrument Comparison        | Market Analysis  |
-| Risk Quiz & User Profiling         | Onboarding       |
+| Feature                            | Category          | Implementation                   |
+|------------------------------------|-------------------|----------------------------------|
+| SHAP Explainability Dashboard      | ML Intelligence   | `explainer.py` + `ExplainabilityPanel.jsx` |
+| Monte Carlo Probability Projections| Wealth Analysis   | `monteCarloEngine.js` + `ProjectionBand.jsx` |
+| Goal-Based Financial Planning      | Financial Planning| `goals.js` + `GoalPlanner.jsx`   |
+| Live AMFI/Yahoo Market Data Sync   | Real-time Data    | `marketDataService.js` + Cron    |
+| Data Freshness Indicator           | Transparency      | `DataFreshnessBar.jsx`           |
+| FY2025-26 Tax Engine + Surcharge   | Taxation          | `taxEngine.js` (7 slabs + surcharge) |
+| Tax Regime Comparison API          | Taxation          | `GET /api/tax/compare`           |
+| Gemini AI Advisory Generation      | Generative AI     | `geminiService.js` + SHAP context|
+| Portfolio Rebalancer               | Active Management | `RebalancerScreen.jsx`           |
+| Step-Up SIP Planner                | Active Management | `StepUpPlanner.jsx`              |
+| Multi-Instrument Comparison        | Market Analysis   | `ComparisonTableModal.jsx`       |
+| Risk Quiz Modal                    | Onboarding        | `RiskQuizModal.jsx`              |
+| Genie Chat (Gemini Q&A)           | Conversational AI | `GenieChat.jsx`                  |
+| JWT Authentication + bcrypt        | Security          | `authMiddleware.js`              |
+| Redis Caching (TTL-based)          | Performance       | `redis.js` config                |
+
 
 ---
 

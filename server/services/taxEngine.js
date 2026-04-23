@@ -42,11 +42,51 @@ function calculateFromSlabs(taxableIncome, slabs) {
 }
 
 /**
+ * Compute surcharge on base tax for high-income individuals.
+ * Surcharge applies to base tax (before cess), based on taxable income.
+ *
+ * New regime surcharge rates (Finance Act 2023 onwards):
+ *   ₹50L – ₹1Cr:    10%
+ *   ₹1Cr – ₹2Cr:    15%
+ *   Above ₹2Cr:     25% (capped at 25% for new regime)
+ *
+ * Old regime surcharge rates:
+ *   ₹50L – ₹1Cr:    10%
+ *   ₹1Cr – ₹2Cr:    15%
+ *   ₹2Cr – ₹5Cr:    25%
+ *   Above ₹5Cr:     37%
+ *
+ * @param {number} taxBeforeSurcharge - Base tax amount
+ * @param {number} taxableIncome - Taxable income after deductions
+ * @param {string} regime - 'new' or 'old'
+ * @returns {number} surcharge amount
+ */
+function computeSurcharge(taxBeforeSurcharge, taxableIncome, regime) {
+  if (taxableIncome <= 5000000) return 0; // Below ₹50L: no surcharge
+
+  let surchargeRate = 0;
+
+  if (regime === 'new') {
+    if (taxableIncome <= 10000000)       surchargeRate = 0.10;
+    else if (taxableIncome <= 20000000)  surchargeRate = 0.15;
+    else                                 surchargeRate = 0.25;
+  } else {
+    // Old regime
+    if (taxableIncome <= 10000000)       surchargeRate = 0.10;
+    else if (taxableIncome <= 20000000)  surchargeRate = 0.15;
+    else if (taxableIncome <= 50000000)  surchargeRate = 0.25;
+    else                                 surchargeRate = 0.37;
+  }
+
+  return taxBeforeSurcharge * surchargeRate;
+}
+
+/**
  * Compute full tax breakdown for a given annual income.
  *
  * @param {number} annualIncome - Gross annual income in ₹
  * @param {string} regime - 'new' (default) or 'old'
- * @returns {{ taxAmount, effectiveRate, regime, rebateApplied, cess, taxBeforeCess, taxableIncome }}
+ * @returns {{ taxAmount, effectiveRate, regime, rebateApplied, surchargeApplied, surchargeAmount, cess, taxBeforeCess, taxableIncome }}
  */
 export function computeTax(annualIncome, regime = 'new') {
   const slabs = regime === 'new' ? NEW_REGIME_SLABS : OLD_REGIME_SLABS;
@@ -67,9 +107,13 @@ export function computeTax(annualIncome, regime = 'new') {
     rebateApplied = true;
   }
 
-  // 4% Health & Education Cess
-  const cess = taxBeforeCess * CESS_RATE;
-  const taxAmount = taxBeforeCess + cess;
+  // Surcharge (applied on base tax before cess)
+  const surcharge = computeSurcharge(taxBeforeCess, taxableIncome, regime);
+  const taxAfterSurcharge = taxBeforeCess + surcharge;
+
+  // 4% Health & Education Cess (applied on tax + surcharge)
+  const cess = taxAfterSurcharge * CESS_RATE;
+  const taxAmount = taxAfterSurcharge + cess;
   const effectiveRate = annualIncome > 0
     ? parseFloat(((taxAmount / annualIncome) * 100).toFixed(2))
     : 0;
@@ -79,6 +123,8 @@ export function computeTax(annualIncome, regime = 'new') {
     effectiveRate,
     regime,
     rebateApplied,
+    surchargeApplied: surcharge > 0,
+    surchargeAmount: Math.round(surcharge),
     cess: Math.round(cess),
     taxBeforeCess: Math.round(taxBeforeCess),
     taxableIncome,
@@ -86,6 +132,7 @@ export function computeTax(annualIncome, regime = 'new') {
     standardDeduction,
   };
 }
+
 
 /**
  * Get the marginal (highest applicable) tax slab percentage.

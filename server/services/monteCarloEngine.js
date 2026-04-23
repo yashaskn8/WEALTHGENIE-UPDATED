@@ -88,13 +88,18 @@ export function runMonteCarlo({
   for (let sim = 0; sim < simulations; sim++) {
     let balance = 0;
 
-    for (let y = 0; y < years; y++) {
-      // Draw annual return from Normal(mean, stdDev) for this year
-      const annualReturn = randomNormal(postTaxAnnualReturn, annualVolatility);
-      const monthlyReturn = annualReturn / 12;
+    // Derive monthly distribution parameters from annual parameters.
+    // Monthly mean:    μ_m = postTaxAnnualReturn / 12
+    // Monthly stdDev:  σ_m = annualVolatility / sqrt(12)
+    // This preserves: E[annual] = 12 × μ_m
+    //                 Var[annual] = 12 × σ_m² = annualVolatility²
+    const monthlyMean = postTaxAnnualReturn / 12;
+    const monthlyStdDev = annualVolatility / Math.sqrt(12);
 
-      // Simulate 12 months of SIP contributions
+    for (let y = 0; y < years; y++) {
       for (let m = 0; m < 12; m++) {
+        // Draw independent sample for each month — no serial correlation
+        const monthlyReturn = monthlyMean + monthlyStdDev * boxMuller();
         balance = (balance + monthlyInvestment) * (1 + monthlyReturn);
       }
 
