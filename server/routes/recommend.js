@@ -3,7 +3,7 @@ import { verifyJWT } from '../middleware/authMiddleware.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Recommendation from '../models/Recommendation.js';
 import { getMLPrediction } from '../services/mlClient.js';
-import { calculatePostTaxReturn } from '../services/postTaxCalculator.js';
+import { calculatePostTaxReturn, calculatePostTaxReturnSafe } from '../services/postTaxCalculator.js';
 import { getTaxSlab } from '../services/taxEngine.js';
 import { generateAdvisory } from '../services/geminiService.js';
 import crypto from 'crypto';
@@ -19,6 +19,27 @@ const INSTRUMENT_META = {
   RBI_Bond: { name: 'RBI Savings Bond', type: 'RBI_Bond', nominalRate: 8.05, riskLevel: 'Very Low', lockIn: 7, tags: ['Sovereign'] },
   Debt_MF: { name: 'Debt Mutual Fund', type: 'Debt_MF', nominalRate: 7.5, riskLevel: 'Low-Medium', lockIn: 0, tags: ['Liquid'] },
 };
+
+const INSTRUMENT_KEY_MAP = {
+  'Public_Provident_Fund': 'PPF',
+  'Bank_FD':               'FD',
+  'National_Pension':      'NPS',
+  'RBI_Bond':              'RBI_Bond',
+  'Sovereign_Gold_Bond':   'SGB',
+  'Gold_ETF':              'Gold',
+  'Nifty_Index':           'Index_MF',
+  'Balanced_Advantage':    'Hybrid_MF',
+};
+
+function normaliseConfidenceScores(rawScores) {
+  if (!rawScores) return {};
+  const normalised = {};
+  for (const [key, value] of Object.entries(rawScores)) {
+    const mappedKey = INSTRUMENT_KEY_MAP[key] || key;
+    normalised[mappedKey] = value;
+  }
+  return normalised;
+}
 
 // POST /api/recommend [Protected]
 router.post('/', verifyJWT, async (req, res) => {
@@ -60,7 +81,7 @@ router.post('/', verifyJWT, async (req, res) => {
     const instruments = picks.map(key => {
       const meta = INSTRUMENT_META[key] || INSTRUMENT_META['FD'];
       // nominalRate in INSTRUMENT_META is percentage; convert to decimal for calculator
-      const postTax = calculatePostTaxReturn(meta.type, meta.nominalRate / 100, profile.annualIncome, 5, profile.taxRegime || 'new');
+      const postTax = calculatePostTaxReturnSafe(meta.type, meta.nominalRate / 100, profile.annualIncome, profile.investment_horizon || 15, profile.taxRegime || 'new');
       return { ...meta, nominalReturn: meta.nominalRate, postTaxReturn: postTax.effectiveYield, effectiveYield: postTax.effectiveYield, taxNotes: postTax.notes };
     });
 
@@ -82,7 +103,7 @@ router.post('/', verifyJWT, async (req, res) => {
       profileId: profile._id,
       instruments,
       advisoryText: advisory.text,
-      confidenceScores: mlResult.confidence_scores,
+      confidenceScores: normaliseConfidenceScores(mlResult.confidence_scores),
       mlFallback: mlResult.fallback || false,
     });
 
@@ -91,7 +112,7 @@ router.post('/', verifyJWT, async (req, res) => {
       instruments,
       ranked: true,
       advisory_text: advisory.text,
-      confidence_scores: mlResult.confidence_scores,
+      confidence_scores: normaliseConfidenceScores(mlResult.confidence_scores),
       decision_path: mlResult.decision_path,
       explanation: mlResult.explanation || null,
       ml_fallback: mlResult.fallback || false,

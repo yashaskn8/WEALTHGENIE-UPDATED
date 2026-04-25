@@ -1,4 +1,4 @@
-import { calculatePostTaxReturn } from '../services/postTaxCalculator.js';
+import { calculatePostTaxReturn, calculatePostTaxReturnSafe, validatePostTaxResult } from '../services/postTaxCalculator.js';
 
 describe('Post-Tax Return Calculator — FY2025-26', () => {
 
@@ -118,6 +118,83 @@ describe('Post-Tax Return Calculator — FY2025-26', () => {
       const oldResult = calculatePostTaxReturn('FD', 0.072, 1500000, 1, 'old');
       // At ₹15L, new regime marginal=15%, old regime marginal=30%
       expect(newResult.taxRate).not.toBe(oldResult.taxRate);
+    });
+  });
+
+  describe('Comprehensive Validations (FY2025-26)', () => {
+    const PROFILE = { income: 780000, regime: 'new', horizon: 15 };
+
+    test('PPF: post-tax equals nominal (EEE)', () => {
+      const r = calculatePostTaxReturnSafe(
+        'PPF', 0.071, PROFILE.income, PROFILE.horizon, PROFILE.regime
+      );
+      expect(r.postTaxReturn).toBe(0.071);
+      expect(r.taxRate).toBe(0);
+      expect(r.postTaxReturn).not.toBeGreaterThan(0.071);
+    });
+
+    test('NPS: post-tax is less than nominal', () => {
+      const r = calculatePostTaxReturnSafe(
+        'NPS', 0.105, PROFILE.income, PROFILE.horizon, PROFILE.regime
+      );
+      expect(r.postTaxReturn).toBeLessThan(0.105);
+      expect(r.postTaxReturn).toBeCloseTo(0.1029, 3);
+    });
+
+    test('SGB: post-tax is less than nominal', () => {
+      const r = calculatePostTaxReturnSafe(
+        'SGB', 0.105, PROFILE.income, 8, PROFILE.regime
+      );
+      expect(r.postTaxReturn).toBeLessThan(0.105);
+    });
+
+    test('Index MF held 15yr: LTCG 12.5% applied', () => {
+      const r = calculatePostTaxReturnSafe(
+        'Equity_MF', 0.125, PROFILE.income, 15, PROFILE.regime
+      );
+      expect(r.postTaxReturn).toBeCloseTo(0.125 * 0.875, 3);
+      expect(r.taxRate).toBe(0.125);
+    });
+
+    test('Gold ETF held 15yr: LTCG 12.5% applied', () => {
+      const r = calculatePostTaxReturnSafe(
+        'Gold', 0.085, PROFILE.income, 15, PROFILE.regime
+      );
+      expect(r.postTaxReturn).toBeCloseTo(0.085 * 0.875, 3);
+    });
+
+    test('FD: post-tax at 5% marginal slab', () => {
+      const r = calculatePostTaxReturnSafe(
+        'FD', 0.0725, PROFILE.income, 1, PROFILE.regime
+      );
+      expect(r.postTaxReturn).toBeCloseTo(0.068875, 4);
+      expect(r.taxRate).toBe(0.05);
+    });
+
+    test('validation: throws on post-tax exceeding nominal', () => {
+      // Simulate the PPF bug
+      const badResult = { postTaxReturn: 0.171, taxRate: -1 };
+      process.env.NODE_ENV = 'production';
+      const validated = validatePostTaxResult(
+        badResult, 0.071, 'PPF'
+      );
+      // In production mode, must return safe fallback
+      expect(validated.postTaxReturn).toBeLessThanOrEqual(0.071);
+      process.env.NODE_ENV = 'test';
+    });
+
+    test('no instrument has post-tax return exceeding nominal', () => {
+      const instruments = [
+        ['PPF', 0.071], ['NPS', 0.105], ['SGB', 0.105],
+        ['FD', 0.0725], ['RBI_Bond', 0.0805],
+        ['Equity_MF', 0.125], ['Gold', 0.085],
+      ];
+      instruments.forEach(([type, nominal]) => {
+        const r = calculatePostTaxReturnSafe(
+          type, nominal, 780000, 15, 'new'
+        );
+        expect(r.postTaxReturn).toBeLessThanOrEqual(nominal + 0.001);
+      });
     });
   });
 });

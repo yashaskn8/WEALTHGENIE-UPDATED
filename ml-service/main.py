@@ -11,6 +11,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from schemas import PredictRequest, PredictResponse, HealthResponse
 from explainer import load_explainer
+from feature_engineering import engineer_features, to_model_array
+from backtester import run_backtest, BacktestResult, INSTRUMENT_MARKET_SENSITIVITY
+from typing import List
 
 # ── Application State ─────────────────────────────────────────────
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'model')
@@ -154,6 +157,89 @@ def health():
         model_accuracy=model_accuracy,
         explainer_loaded=explainer_instance is not None,
     )
+
+@app.post("/predict/enriched")
+async def predict_enriched(data: PredictRequest):
+    """
+    Extended prediction endpoint that includes feature
+    engineering context in the response.
+    """
+    risk_score = RISK_ENCODING.get(data.risk_category, 2)
+    features = engineer_features(
+        age=data.age,
+        annual_income=data.annual_income,
+        monthly_savings=data.monthly_savings,
+        risk_score=risk_score
+    )
+    model_input = to_model_array(features)
+    
+    if model is None or label_encoder is None:
+        raise HTTPException(status_code=503, detail="Model not loaded. Run train.py first.")
+
+    proba = model.predict_proba(model_input)[0]
+    ranked = np.argsort(proba)[::-1]
+
+    explanation = None
+    if explainer_instance is not None:
+        try:
+            explanation = explainer_instance.explain(model_input)
+        except Exception as e:
+            print(f"[WARN] Explainer failed: {e}")
+
+    return {
+        "primary": label_encoder.classes_[ranked[0]],
+        "secondary": label_encoder.classes_[ranked[1]],
+        "tertiary": label_encoder.classes_[ranked[2]],
+        "confidence_scores": {
+            cls: round(float(p), 4)
+            for cls, p in zip(label_encoder.classes_, proba)
+        },
+        "explanation": explanation,
+        "decision_path": get_decision_path_description(data.age, data.annual_income, data.risk_category),
+        "enriched_features": {
+            "savings_rate": features.savings_rate,
+            "income_bracket": features.income_bracket,
+            "retirement_years": features.retirement_years,
+            "risk_age_score": features.risk_age_score,
+        },
+        "model_version": "1.0",
+    }
+
+@app.get("/backtest/{instrument_type}")
+async def backtest_instrument(
+    instrument_type: str,
+    monthly_sip: float = 10000,
+    years: int = 5
+):
+    """
+    Returns historical scenario analysis for an instrument type.
+    Useful for the 'Why recommended?' expandable panel.
+    """
+    valid_types = list(INSTRUMENT_MARKET_SENSITIVITY.keys())
+    if instrument_type not in valid_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown instrument type. Valid: {valid_types}"
+        )
+
+    results = run_backtest(instrument_type, monthly_sip, years)
+    return {
+        "instrument": instrument_type,
+        "periods_analysed": len(results),
+        "scenarios": [
+            {
+                "period": r.period,
+                "return": r.simulated_return,
+                "sharpe": r.sharpe_ratio,
+                "max_drawdown": r.max_drawdown,
+                "note": r.note,
+            }
+            for r in results
+        ],
+        "disclaimer": "Historical performance does not guarantee "
+                      "future returns. Scenarios are approximations "
+                      "based on Nifty 50 index returns.",
+    }
 
 
 if __name__ == "__main__":

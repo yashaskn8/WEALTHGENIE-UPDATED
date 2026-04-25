@@ -670,28 +670,37 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
                     {/* Score bar — Fix 4: use actual ML confidence or mark as local */}
                     {(() => {
                       const confidence = rec.ml_confidence;
-                      const confLabel = getConfidenceLabel(confidence || 0);
                       const hasRealConfidence = confidence != null && confidence > 0;
-                      const displayPct = hasRealConfidence ? Math.round(confidence * 100) : null;
+                      
+                      if (!hasRealConfidence) {
+                        return (
+                          <div className="confidence-unavailable" style={{ fontSize: '0.7rem', color: '#64748b', fontStyle: 'italic', marginBottom: 8 }}>
+                            ML scoring unavailable for this instrument
+                          </div>
+                        );
+                      }
+
+                      const confLabel = getConfidenceLabel(confidence || 0);
+                      const displayPct = Math.round(confidence * 100);
                       return (
                         <>
-                          <div style={{ marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div className="confidence-bar-container" style={{ marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>ML Confidence</span>
-                            <span style={{ fontSize: '0.7rem', color: hasRealConfidence ? confLabel.colour : '#64748b' }}>
-                              {hasRealConfidence ? `${displayPct}%` : 'Awaiting ML'}
+                            <span className="confidence-value" style={{ fontSize: '0.7rem', color: confLabel.colour }}>
+                              {confLabel.label || `${displayPct}%`}
                             </span>
                           </div>
                           <div style={{ height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 2, marginBottom: 6 }}>
-                            <div style={{
+                            <div className="confidence-bar" style={{
                               height: '100%',
-                              width: hasRealConfidence ? `${Math.min(100, displayPct)}%` : '0%',
-                              background: hasRealConfidence ? confLabel.colour : '#64748b',
+                              width: `${Math.min(100, displayPct)}%`,
+                              background: confLabel.colour,
                               borderRadius: 2,
                               transition: 'width 0.5s ease'
                             }} />
                           </div>
                           {/* Fix 4: Low confidence badge */}
-                          {hasRealConfidence && confidence < 0.30 && (
+                          {confidence < 0.30 && (
                             <div style={{
                               fontSize: '0.7rem', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.08)',
                               border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: 8,

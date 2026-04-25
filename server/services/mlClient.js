@@ -2,18 +2,26 @@ import axios from 'axios';
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
 
+const ML_TIMEOUT_MS = 5000;
+
 export async function getMLPrediction(profileData) {
   try {
-    const res = await axios.post(`${ML_SERVICE_URL}/predict`, {
+    const res = await axios.post(`${ML_SERVICE_URL}/predict/enriched`, {
       age: profileData.age,
       annual_income: profileData.annual_income,
       monthly_savings: profileData.monthly_savings,
       risk_category: profileData.risk_category,
-    }, { timeout: 5000 });
+    }, { timeout: ML_TIMEOUT_MS });
     return res.data;
   } catch (err) {
-    console.warn('ML service unavailable, using fallback:', err.message);
-    return getRuleBasedFallback(profileData);
+    console.warn('[MLClient] ML service unavailable:', err.message);
+    // Return structured fallback — do not crash the recommendation
+    return {
+      primary: null,
+      confidence_scores: {},
+      explanation: null,
+      fallback: true,
+    };
   }
 }
 

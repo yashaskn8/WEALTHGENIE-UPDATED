@@ -87,7 +87,7 @@ export function calculatePostTaxReturn(
         return {
           postTaxReturn: round4(postTax),
           effectiveYield: round4(postTax * 100),
-          taxType: 'STCG (20% flat)',
+          taxType: 'STCG (20% flat, held < 1 year)',
           taxRate: 0.20,
           notes: 'Held < 1 year. STCG at 20% applies on full gains.'
         };
@@ -98,9 +98,11 @@ export function calculatePostTaxReturn(
         return {
           postTaxReturn: round4(postTax),
           effectiveYield: round4(postTax * 100),
-          taxType: 'LTCG (12.5% post ₹1.25L exemption)',
+          taxType: 'LTCG (12.5% on gains above ₹1.25L)',
           taxRate: ltcgRate,
-          notes: 'Held > 1 year. Gains above ₹1.25L/year taxed at 12.5%.'
+          notes: 'Gains above ₹1.25L/year taxed at 12.5%. '
+               + 'For smaller monthly SIPs, effective tax drag '
+               + 'may be lower than the headline 12.5%.'
         };
       }
     }
@@ -120,16 +122,20 @@ export function calculatePostTaxReturn(
     }
 
     case 'RBI_Bond': {
-      // 8% Floating Rate Savings Bond (Taxable), 2020.
-      // Interest paid semi-annually. Fully taxable at slab. No TDS.
+      // Interest fully taxable at marginal slab rate.
+      // No TDS deducted. Must be declared in ITR.
+      // Non-tradeable — no capital gains component.
       const postTax = nominalRate * (1 - marginalRate);
+
       return {
         postTaxReturn: round4(postTax),
         effectiveYield: round4(postTax * 100),
-        taxType: 'Slab Rate (no TDS, declare in ITR)',
+        taxType: `Slab Rate (${(marginalRate*100).toFixed(0)}% marginal, no TDS)`,
         taxRate: marginalRate,
-        notes: 'No TDS deducted. Interest must be declared in ITR. '
-             + 'Non-tradeable — zero capital gains applicable.'
+        notes: 'Interest paid semi-annually. '
+             + 'No TDS deducted — declare in ITR. '
+             + 'Non-tradeable (cannot be sold before maturity). '
+             + 'Lock-in: 7 years.',
       };
     }
 
@@ -154,31 +160,48 @@ export function calculatePostTaxReturn(
     }
 
     case 'PPF': {
-      // EEE instrument: contribution, interest, and maturity — all tax-exempt.
-      // 15-year lock-in. Current rate: 7.1% (notified quarterly by RBI).
+      // PPF is an EEE (Exempt-Exempt-Exempt) instrument.
+      // Stage 1 — Contribution: eligible for 80C deduction
+      //           (old regime only; irrelevant here as user is on new regime)
+      // Stage 2 — Annual interest: fully exempt under Section 10(11)
+      // Stage 3 — Maturity corpus: fully exempt under Section 10(11)
+      //
+      // Under NO circumstances does PPF post-tax return exceed nominal.
+      // The tax-equivalent yield calculation is ONLY appropriate for
+      // comparing PPF against a taxable instrument — it must NEVER be
+      // displayed as the instrument's own post-tax return.
+      //
+      // Correct formula: postTaxReturn = nominalRate (no deduction)
+
       return {
-        postTaxReturn: nominalRate,   // No tax at any stage
+        postTaxReturn: nominalRate,
         effectiveYield: round4(nominalRate * 100),
-        taxType: 'EEE — Fully Exempt',
+        taxType: 'EEE — Fully Exempt (Section 10(11))',
         taxRate: 0,
-        notes: 'Exempt-Exempt-Exempt. 15-year lock-in. '
-             + 'Max ₹1.5L/year contribution. 80C eligible (old regime).'
+        taxAmount: 0,
+        notes: 'Interest and maturity corpus fully exempt from tax. '
+             + 'No tax deducted at any stage. '
+             + 'Max contribution ₹1.5L/year. Lock-in: 15 years.',
       };
     }
 
     case 'NPS': {
-      // Partial EET: contributions tax-deductible (80C + 80CCD(1B)),
-      // 60% of corpus tax-exempt on maturity, 40% must be annuitised (taxable).
-      const effectiveTaxOnMaturity = 0.40 * marginalRate;
-      const annualisedTaxDrag = Math.pow(1 - effectiveTaxOnMaturity, 1 / holdingYears) - 1;
-      const postTax = nominalRate + annualisedTaxDrag;
+      // NPS partial EET: 60% corpus tax-free, 40% annuitised
+      // Annuity income taxed at marginal slab in retirement
+      // Simplified blended tax drag applied to nominal return
+      const annuityTaxedFraction = 0.40;
+      const blendedTaxDrag = annuityTaxedFraction * marginalRate;
+      const postTax = nominalRate * (1 - blendedTaxDrag);
+
       return {
-        postTaxReturn: round4(Math.max(0, postTax)),
-        effectiveYield: round4(Math.max(0, postTax) * 100),
-        taxType: 'Partial EET (40% annuity taxable at maturity)',
-        taxRate: round4(effectiveTaxOnMaturity),
-        notes: '60% maturity corpus tax-free. 40% must be annuitised. '
-             + 'Exit before 60 triggers higher tax. 80CCD(1B) allows ₹50K extra deduction.'
+        postTaxReturn: round4(postTax),
+        effectiveYield: round4(postTax * 100),
+        taxType: `Partial EET (40% annuity taxed at ${(marginalRate*100).toFixed(0)}% slab)`,
+        taxRate: round4(blendedTaxDrag),
+        notes: '60% of maturity corpus is tax-free. '
+             + '40% must be annuitised — pension income taxed at slab. '
+             + 'Additional ₹50K deduction under 80CCD(1B) — old regime only. '
+             + `Lock-in: matures at age 60.`,
       };
     }
 
@@ -199,7 +222,84 @@ export function calculatePostTaxReturn(
       };
     }
 
+    case 'SGB': {
+      const interestComponent = 0.025;  // 2.5% statutory annual interest
+      const capitalComponent = nominalRate - interestComponent;
+
+      // Interest: taxable at marginal slab rate
+      const taxOnInterest = interestComponent * marginalRate;
+      // Capital gains at maturity: fully exempt (Section 47(viic))
+      const taxOnGains = 0;
+
+      const totalTaxDrag = taxOnInterest + taxOnGains;
+      const postTax = nominalRate - totalTaxDrag;
+
+      return {
+        postTaxReturn: round4(postTax),
+        effectiveYield: round4(postTax * 100),
+        taxType: 'Interest taxable at slab; maturity gains exempt (47(viic))',
+        taxRate: round4(totalTaxDrag / nominalRate),
+        notes: '2.5% annual interest taxable at slab rate. '
+             + 'Capital appreciation fully exempt if held to maturity (8yr). '
+             + 'LTCG at 12.5% applies on redemption before maturity.',
+      };
+    }
+
     default:
       throw new Error(`Unknown instrument type: ${instrumentType}`);
   }
+}
+
+export function validatePostTaxResult(result, nominalRate, instrumentType) {
+  const errors = [];
+
+  // Rule 1: Post-tax return must never exceed nominal return
+  if (result.postTaxReturn > nominalRate + 0.001) {
+    errors.push(
+      `${instrumentType}: postTaxReturn (${result.postTaxReturn}) `
+      + `exceeds nominalRate (${nominalRate}). `
+      + `This is mathematically impossible. Check the case block.`
+    );
+  }
+
+  // Rule 2: Post-tax return must not be negative
+  if (result.postTaxReturn < 0) {
+    errors.push(
+      `${instrumentType}: postTaxReturn is negative `
+      + `(${result.postTaxReturn}). Check the tax calculation.`
+    );
+  }
+
+  // Rule 3: Tax rate must be between 0 and 1
+  if (result.taxRate < 0 || result.taxRate > 1) {
+    errors.push(
+      `${instrumentType}: taxRate (${result.taxRate}) is outside `
+      + `valid range [0, 1].`
+    );
+  }
+
+  // Rule 4: EEE instruments must have taxRate = 0
+  if (['PPF', 'SSY'].includes(instrumentType) && result.taxRate !== 0) {
+    errors.push(
+      `${instrumentType}: EEE instrument must have taxRate = 0, `
+      + `got ${result.taxRate}.`
+    );
+  }
+
+  if (errors.length > 0) {
+    errors.forEach(e => console.error('[PostTax Validation]', e));
+    if (process.env.NODE_ENV === 'production') {
+      // Return nominal rate as safe fallback in production
+      return { ...result, postTaxReturn: nominalRate,
+               taxRate: 0, validationFailed: true };
+    }
+  }
+
+  return result;
+}
+
+export function calculatePostTaxReturnSafe(...args) {
+  const result = calculatePostTaxReturn(...args);
+  const [instrumentType, nominalRate] = args;
+  return validatePostTaxResult(result, nominalRate, instrumentType);
 }
