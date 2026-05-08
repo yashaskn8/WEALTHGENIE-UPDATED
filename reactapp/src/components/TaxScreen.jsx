@@ -246,7 +246,7 @@ const TaxScreen = ({ profile }) => {
           </div>
           {betterRegime !== 'Either' && (
             <div style={{ textAlign: 'center', marginTop: 12, fontSize: '0.95rem', color: '#10b981', fontWeight: 600 }}>
-              ✅ {betterRegime} Regime saves you {formatINR(betterRegimeSavings)}
+              {betterRegime} Regime saves you {formatINR(betterRegimeSavings)}
             </div>
           )}
         </motion.div>

@@ -106,7 +106,7 @@ const DeepDiveModal = ({ isOpen, onClose, investment, allRecommendations, horizo
 
               <div className="ddm-pros-cons">
                 <div className="ddm-pros">
-                  <h4>✅ Pros</h4>
+                  <h4>Advantages</h4>
                   <ul>
                     <li>Expected returns: {inv.expected_return_min}% – {inv.expected_return_max}%</li>
                     {inv.tax_benefit && <li>Tax benefits under Section {inv.tax_section}</li>}
@@ -115,7 +115,7 @@ const DeepDiveModal = ({ isOpen, onClose, investment, allRecommendations, horizo
                   </ul>
                 </div>
                 <div className="ddm-cons">
-                  <h4>⚠️ Considerations</h4>
+                  <h4>Considerations</h4>
                   <ul>
                     {inv.lock_in_years && <li>Lock-in period of {inv.lock_in_years} years</li>}
                     {inv.risk_level === 'High' || inv.risk_level === 'Very High' ? <li>Higher volatility risk</li> : null}
@@ -269,7 +269,7 @@ const DeepDiveModal = ({ isOpen, onClose, investment, allRecommendations, horizo
           {/* HISTORY TAB */}
           {activeTab === 'History' && (
             <div>
-              <p style={{ color: '#f59e0b', fontSize: '0.82rem', marginBottom: 16 }}>⚠️ Illustrative data only. Past performance does not guarantee future results.</p>
+              <p style={{ color: '#f59e0b', fontSize: '0.82rem', marginBottom: 16 }}>Illustrative data only. Past performance does not guarantee future results.</p>
               <div style={{ width: '100%', height: 320 }}>
                 <ResponsiveContainer>
                   <LineChart data={historicalData} margin={{ top: 10, right: 20, left: 20, bottom: 10 }}>

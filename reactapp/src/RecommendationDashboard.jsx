@@ -324,7 +324,7 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
             <AlertCircle size={18} color={riskAgeMismatch.severity === 'warning' ? '#f59e0b' : '#0ea5e9'} style={{flexShrink: 0, marginTop: 1}} />
             <div style={{flex: 1}}>
               <div style={{fontWeight: 700, color: riskAgeMismatch.severity === 'warning' ? '#fbbf24' : '#38bdf8', marginBottom: 4, fontSize: '0.82rem'}}>
-                ⚠️ {riskAgeMismatch.title}
+                {riskAgeMismatch.title}
               </div>
               <div style={{color: '#94a3b8', marginBottom: 4}}>{riskAgeMismatch.message}</div>
               <div style={{color: '#cbd5e1', fontSize: '0.72rem'}}>{riskAgeMismatch.recommendation}</div>
@@ -604,7 +604,7 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
                         border: '1px solid rgba(34, 197, 94, 0.15)',
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                          <span style={{ fontSize: '1.1rem' }}>🎯</span>
+                          <span style={{ width: 22, height: 22, borderRadius: 6, background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.25)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 900, color: '#22c55e' }}>✓</span>
                           <strong style={{ fontSize: '0.85rem', color: '#22c55e' }}>Goal on track — plan your surplus</strong>
                         </div>
                         <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0 0 10px 0', lineHeight: 1.5 }}>
@@ -1008,7 +1008,7 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
               </div>
               {(userProfile?.investment_goals || [])[0] === 'Emergency Fund' && (
                 <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 8, padding: '6px 10px', background: 'rgba(34, 197, 94, 0.04)', border: '1px solid rgba(34, 197, 94, 0.1)', borderRadius: 8, lineHeight: 1.4 }}>
-                  ✅ Outperforms savings accounts with higher liquidity.
+                  Outperforms savings accounts with higher liquidity.
                 </div>
               )}
             </div>
@@ -1084,7 +1084,7 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
                       background: 'rgba(139, 92, 246, 0.04)', border: '1px solid rgba(139, 92, 246, 0.1)',
                       fontSize: '0.68rem', color: '#a78bfa', lineHeight: 1.5
                     }}>
-                      💡 {Number(equityPct) > 70 
+                      {Number(equityPct) > 70 
                         ? 'High equity exposure — consider adding debt instruments for stability.' 
                         : Number(debtPct) > 60 
                         ? 'Conservative mix — you may boost equity allocation for higher growth.'
@@ -1199,7 +1199,7 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
                           <div><span style={{color: '#546178', fontSize: '0.65rem'}}>Lock-in:</span><br/><span style={{color: '#94a3b8'}}>{INSTRUMENT_EXPLAINERS[rec.id].lock_in_plain}</span></div>
                         </div>
                         {INSTRUMENT_EXPLAINERS[rec.id].who_for && <div style={{color: '#94a3b8'}}><strong style={{color: '#e2e8f0'}}>Best for:</strong> {INSTRUMENT_EXPLAINERS[rec.id].who_for}</div>}
-                        {INSTRUMENT_EXPLAINERS[rec.id].example && <div style={{color: '#4ade80', marginTop: 4, fontSize: '0.68rem'}}>💡 {INSTRUMENT_EXPLAINERS[rec.id].example}</div>}
+                        {INSTRUMENT_EXPLAINERS[rec.id].example && <div style={{color: '#4ade80', marginTop: 4, fontSize: '0.68rem'}}>{INSTRUMENT_EXPLAINERS[rec.id].example}</div>}
                       </div>
                     )}
 
@@ -1400,7 +1400,7 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
                   <BarChart3 size={20} color="#94a3b8" /> Browse by Liquidity
                 </h2>
                 <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: 20 }}>
-                  ⚡ Emergency funds require instant access. All instruments below have zero lock-in.
+                  Emergency funds require instant access. All instruments below have zero lock-in.
                 </p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
                   {groups.map(grp => (

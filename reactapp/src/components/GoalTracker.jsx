@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, Palmtree, Diamond, FileText, Shield, TrendingUp, AlertTriangle, CheckCircle, Clock, Zap, IndianRupee, ArrowRight } from 'lucide-react';
+import { Target, Palmtree, Diamond, FileText, Shield, TrendingUp, AlertTriangle, CheckCircle, Clock, Zap, IndianRupee, ArrowRight, Lightbulb, Wallet } from 'lucide-react';
 import { formatINR } from '../utils/indianNumberFormat';
 import { calculateSIPFutureValue } from '../utils/sipCalculator';
 import './GoalTracker.css';
@@ -148,7 +148,7 @@ const GoalCard = ({ goal, defaults, currentSaved, target, onTargetChange, onCurr
       <div className="goal-inputs-row">
         <div className="goal-input-group">
           <div className="goal-input-label-row">
-            <label>🎯 Target Amount</label>
+            <label><Target size={12} style={{marginRight:4, verticalAlign:'-1px', color:'#38bdf8'}} /> Target Amount</label>
             <span className="goal-input-hint-badge">{formatShort(actualTarget)}</span>
           </div>
           <div className="goal-input-wrapper">
@@ -188,7 +188,7 @@ const GoalCard = ({ goal, defaults, currentSaved, target, onTargetChange, onCurr
         </div>
         <div className="goal-input-group">
           <div className="goal-input-label-row">
-            <label>💰 Already Saved</label>
+            <label><Wallet size={12} style={{marginRight:4, verticalAlign:'-1px', color:'#10b981'}} /> Already Saved</label>
             <span className="goal-input-hint-badge">{formatShort(actualSaved)}</span>
           </div>
           <div className="goal-input-wrapper">
@@ -264,10 +264,10 @@ const GoalCard = ({ goal, defaults, currentSaved, target, onTargetChange, onCurr
         <div className="goal-metric">
           <span className="goal-metric-label"><TrendingUp size={12} /> Projected</span>
           <span className="goal-metric-value" style={{ color: defaults.themeColor }}>{formatShort(projectedValue)}</span>
-          <span className="goal-metric-sub">{completionPct >= 100 ? '✅ Met' : `${completionPct}%`}</span>
+          <span className="goal-metric-sub">{completionPct >= 100 ? 'Met' : `${completionPct}%`}</span>
         </div>
         <div className="goal-metric">
-          <span className="goal-metric-label">{gapPositive ? '⚠️ Shortfall' : '✅ Surplus'}</span>
+          <span className="goal-metric-label">{gapPositive ? 'Shortfall' : 'Surplus'}</span>
           <span className="goal-metric-value" style={{ color: gapPositive ? '#f43f5e' : '#10b981' }}>
             {formatShort(Math.abs(gap))}
           </span>
@@ -304,7 +304,7 @@ const GoalCard = ({ goal, defaults, currentSaved, target, onTargetChange, onCurr
 
       {/* Contextual Tips */}
       <div className="goal-tip" style={{ borderLeftColor: defaults.themeColor }}>
-        <span className="tip-icon">💡</span> {defaults.tip}
+        <Lightbulb size={14} color={defaults.themeColor} style={{ flexShrink: 0, marginRight: 4 }} /> {defaults.tip}
       </div>
     </motion.div>
   );

@@ -115,7 +115,7 @@ const ExplainabilityPanel = ({ explanation, instrumentName }) => {
           display: 'inline-flex', width: 28, height: 28, borderRadius: 8,
           background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
           alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem',
-        }}>🧠</span>
+        }}>AI</span>
         Why WealthGenie recommended {titleInstrument}
       </h3>
       <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: 16, position: 'relative' }}>

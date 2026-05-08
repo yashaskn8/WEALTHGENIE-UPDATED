@@ -95,7 +95,7 @@ const MessageBubble = ({ msg }) => {
 
   return (
     <div className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble--user' : 'chat-bubble--genie'}`}>
-      {msg.role === 'assistant' && <div className="bubble-avatar">🧞</div>}
+      {msg.role === 'assistant' && <div className="bubble-avatar" style={{ background: 'linear-gradient(135deg, #0ea5e9, #8b5cf6)', color: '#fff', fontSize: '0.7rem', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>G</div>}
       <div className="bubble-body">
         <div className="bubble-text">
           <MessageContent content={msg.content} />
@@ -295,7 +295,7 @@ const GenieChat = ({ profile, recommendations }) => {
           {/* ── Header ──────────────────────────────────── */}
           <div className="genie-panel-header">
             <div className="genie-header-left">
-              <span className="genie-avatar">🧞</span>
+              <span className="genie-avatar" style={{ background: 'linear-gradient(135deg, #0ea5e9, #8b5cf6)', color: '#fff', fontSize: '0.75rem', fontWeight: 900, width: 28, height: 28, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>G</span>
               <div>
                 <div className="genie-header-title">Genie</div>
                 <div className="genie-header-sub">
@@ -322,7 +322,7 @@ const GenieChat = ({ profile, recommendations }) => {
           <div className="genie-messages">
             {messages.length === 0 && !isLoading && (
               <div className="genie-welcome">
-                <span style={{ fontSize: '2.5rem' }}>🧞</span>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg, #0ea5e9, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.3rem', fontWeight: 900, boxShadow: '0 0 20px rgba(14,165,233,0.3)' }}>G</div>
                 <p>Hi{profile?.name ? `, ${profile.name.split(' ')[0]}` : ''}! I'm <strong>Genie</strong>, your personal financial advisor.</p>
                 <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
                   Ask me anything about your investments, tax planning, or financial goals. I have your complete profile loaded.
@@ -345,7 +345,7 @@ const GenieChat = ({ profile, recommendations }) => {
 
             {isLoading && (
               <div className="chat-bubble chat-bubble--genie">
-                <div className="bubble-avatar">🧞</div>
+                <div className="bubble-avatar" style={{ background: 'linear-gradient(135deg, #0ea5e9, #8b5cf6)', color: '#fff', fontSize: '0.7rem', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>G</div>
                 <div className="typing-indicator">
                   <span></span><span></span><span></span>
                 </div>
@@ -396,7 +396,7 @@ const GenieChat = ({ profile, recommendations }) => {
 
           {/* ── Disclaimer ─────────────────────────────── */}
           <div className="genie-disclaimer">
-            ⚠️ For informational purposes only. Not registered investment advice.
+            For informational purposes only. Not registered investment advice.
           </div>
         </div>
       )}

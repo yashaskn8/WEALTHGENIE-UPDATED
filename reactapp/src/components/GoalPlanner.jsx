@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Plus, Trash2, TrendingUp, AlertTriangle, CheckCircle, Calendar, DollarSign, Rocket } from 'lucide-react';
+import { Target, Plus, Trash2, TrendingUp, AlertTriangle, CheckCircle, Calendar, DollarSign, Rocket, Umbrella, Home, GraduationCap, Shield, Car, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProjectionBand from './ProjectionBand';
 import SebiDisclaimer from './SebiDisclaimer';
 import api from '../services/api';
 
 const GOAL_PRESETS = [
-  { label: 'Retirement', icon: '🏖️' },
-  { label: 'Home Purchase', icon: '🏠' },
-  { label: 'Child Education', icon: '🎓' },
-  { label: 'Emergency Fund', icon: '🛡️' },
-  { label: 'Vehicle', icon: '🚗' },
-  { label: 'Custom', icon: '✨' },
+  { label: 'Retirement', Icon: Umbrella, color: '#f59e0b' },
+  { label: 'Home Purchase', Icon: Home, color: '#38bdf8' },
+  { label: 'Child Education', Icon: GraduationCap, color: '#8b5cf6' },
+  { label: 'Emergency Fund', Icon: Shield, color: '#10b981' },
+  { label: 'Vehicle', Icon: Car, color: '#f43f5e' },
+  { label: 'Custom', Icon: Sparkles, color: '#94a3b8' },
 ];
 
 const STATUS_CONFIG = {
@@ -183,7 +183,7 @@ const GoalPlanner = ({ profile }) => {
                         gap: 6, boxShadow: goalName === preset.label ? 'inset 0 2px 4px rgba(255,255,255,0.1)' : 'none',
                       }}
                     >
-                      <span style={{ fontSize: '1.2rem' }}>{preset.icon}</span> {preset.label}
+                      <preset.Icon size={16} color={goalName === preset.label ? '#fff' : preset.color} /> {preset.label}
                     </motion.button>
                   ))}
                 </div>
@@ -437,7 +437,7 @@ const GoalPlanner = ({ profile }) => {
                     boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.05)'
                   }}>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: '1.4rem', textShadow: '0 0 10px rgba(255,255,255,0.5)' }}>✨</span> 
+                      <Sparkles size={18} color="#38bdf8" style={{ flexShrink: 0, filter: 'drop-shadow(0 0 6px rgba(56,189,248,0.5))' }} />
                       <div>{selectedGoal.gemini_advice}</div>
                     </div>
                   </motion.div>

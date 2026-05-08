@@ -17,7 +17,7 @@ class ErrorBoundary extends React.Component {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           minHeight: 256, padding: 32, textAlign: 'center',
         }}>
-          <div style={{ fontSize: '3rem', marginBottom: 16 }}>⚠️</div>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))', border: '1px solid rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, margin: '0 auto 16px', fontSize: '1.5rem', color: '#f59e0b', fontWeight: 900 }}>!</div>
           <h3 style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', marginBottom: 8 }}>
             Something went wrong
           </h3>

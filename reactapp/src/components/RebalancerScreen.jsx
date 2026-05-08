@@ -14,11 +14,11 @@ const RISK_COLORS = {
 };
 
 const INSTRUMENT_ICONS = {
-  'ppf': '🛡️', 'scss': '👴', 'sukanya': '👧', 'rbi_bonds': '🏛️',
-  'fd': '🏦', 'debt_mf': '📜', 'nps': '⚖️', 'hybrid_mf': '📊',
-  'index_mf': '📈', 'gold_etf': '🥇', 'elss': '💰', 'nifty_etf': '🛒',
-  'midcap_mf': '🚀', 'smallcap_mf': '⚡', 'direct_equity': '📉',
-  'liquid_mf': '💧'
+  'ppf': 'PP', 'scss': 'SC', 'sukanya': 'SS', 'rbi_bonds': 'RB',
+  'fd': 'FD', 'debt_mf': 'DM', 'nps': 'NP', 'hybrid_mf': 'HM',
+  'index_mf': 'IX', 'gold_etf': 'AU', 'elss': 'EL', 'nifty_etf': 'NF',
+  'midcap_mf': 'MC', 'smallcap_mf': 'SM', 'direct_equity': 'EQ',
+  'liquid_mf': 'LQ', 'sgb': 'SG', 'pmvvy': 'PM'
 };
 
 const RebalancerScreen = ({ profile, recommendations, onSave }) => {
@@ -273,7 +273,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
             const pct = allocations[inv.id] || 0;
             const amount = Math.round((pct / 100) * totalSavings / 100) * 100;
             const badgeColor = RISK_COLORS[inv.risk_level] || '#0ea5e9';
-            const icon = INSTRUMENT_ICONS[inv.id] || '📄';
+            const icon = INSTRUMENT_ICONS[inv.id] || inv.name?.substring(0,2).toUpperCase() || 'IN';
 
             return (
               <motion.div 
@@ -292,12 +292,15 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
                   <div 
                     className="instrument-icon-wrap"
                     style={{ 
-                      background: `${badgeColor}15`,
-                      borderColor: `${badgeColor}25`,
+                      background: `linear-gradient(135deg, ${badgeColor}18, ${badgeColor}08)`,
+                      borderColor: `${badgeColor}30`,
                       boxShadow: `0 4px 14px ${badgeColor}18, inset 0 1px 2px rgba(255,255,255,0.06)`
                     }}
                   >
-                    {icon}
+                    <span style={{
+                      fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.5px',
+                      color: badgeColor, fontFamily: 'Inter, monospace'
+                    }}>{icon}</span>
                   </div>
                   <div className="instrument-text">
                     <span className="rebal-slider-name">{inv.name}</span>

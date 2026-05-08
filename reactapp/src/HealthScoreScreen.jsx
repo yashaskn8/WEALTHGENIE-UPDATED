@@ -121,7 +121,7 @@ const ScoreHistoryPanel = ({ currentScore, profile, subScores }) => {
           +{currentScore - Math.max(20, clampedBase)} points since profile creation.
           {pointsToExcellent > 0
             ? ` Need ${pointsToExcellent} more for "Excellent" (≥80) — focus on ${weakest?.label || 'lowest metric'} (${Math.round(weakest?.val || 0)}/100).`
-            : " 🎉 You've reached Excellent status!"}
+            : " You've reached Excellent status!"}
         </p>
       </div>
     </div>

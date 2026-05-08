@@ -15,7 +15,7 @@ const GoalCoverage = ({ selectedGoals, recommendations }) => {
 
           return (
             <div key={goal} className="goal-coverage-row">
-              <span className="goal-check">✅</span>
+              <span className="goal-check" style={{ width: 18, height: 18, borderRadius: 5, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: '#10b981', fontWeight: 900 }}>✓</span>
               <span style={{fontWeight: '600', color: '#e2e8f0', minWidth: '140px'}}>{goal}</span>
               <span className="goal-covered-by">
                 — covered by: {coveringInvestments.length > 0 ? coveringInvestments.join(', ') : 'Not directly covered by top picks'}

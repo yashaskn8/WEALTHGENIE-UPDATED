@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Clock, Banknote, Wallet, Scale, Target, Telescope, User } from 'lucide-react';
+import { Clock, Banknote, Wallet, Scale, Target, Telescope, User, Eye, EyeOff } from 'lucide-react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import './App.css';
 import logoImg from './assets/logo.png';
@@ -296,9 +296,21 @@ const DashboardShell = ({ userProfile, onRecalculate }) => {
       case 'compare':
         return (
           <ErrorBoundary>
-          <div style={{ padding: '40px 20px', maxWidth: 1100, margin: '0 auto' }}>
-            <h1 className="page-title">🔍 Compare Investments</h1>
-            <p className="page-subtitle">Compare {eligibleInvestments.length} eligible investments side by side</p>
+          <div style={{ padding: '40px 28px', maxWidth: 1200, margin: '0 auto', position: 'relative' }}>
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '3px', textTransform: 'uppercase', color: '#38bdf8', marginBottom: 8, opacity: 0.9 }}>
+                INVESTMENT EXPLORER
+              </div>
+              <h1 className="page-title" style={{ fontSize: '2.2rem', marginBottom: 6 }}>
+                Compare <span style={{
+                  background: 'linear-gradient(135deg, #38bdf8, #a78bfa)',
+                  WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent'
+                }}>Investments</span>
+              </h1>
+              <p className="page-subtitle" style={{ marginBottom: 0, fontSize: '0.95rem' }}>
+                Compare {eligibleInvestments.length} eligible investments side by side
+              </p>
+            </div>
             <ComparisonTableModal
               isOpen={true}
               onClose={() => setActivePage('dashboard')}
@@ -312,48 +324,77 @@ const DashboardShell = ({ userProfile, onRecalculate }) => {
         return <ErrorBoundary><AllocationPlanner profile={userProfile} /></ErrorBoundary>;
       case 'profile':
         const profileData = [
-          { label: 'Age', value: userProfile.age, icon: <Clock size={18} color="#94a3b8" /> },
-          { label: 'Monthly Income', value: `₹${Number(userProfile.monthly_income).toLocaleString('en-IN')}`, icon: <Banknote size={18} color="#22c55e" /> },
-          { label: 'Monthly Savings', value: `₹${Number(userProfile.monthly_savings).toLocaleString('en-IN')}`, icon: <Wallet size={18} color="#0ea5e9" /> },
-          { label: 'Risk Appetite', value: userProfile.risk_appetite, icon: <Scale size={18} color="#f59e0b" /> },
-          { label: 'Investment Goals', value: userProfile.investment_goals.join(', '), icon: <Target size={18} color="#f43f5e" /> },
-          { label: 'Investment Horizon', value: `${userProfile.investment_horizon} years`, icon: <Telescope size={18} color="#8b5cf6" /> },
+          { label: 'Age', value: userProfile.age, icon: <Clock size={20} color="#94a3b8" /> },
+          { label: 'Monthly Income', value: `₹${Number(userProfile.monthly_income).toLocaleString('en-IN')}`, icon: <Banknote size={20} color="#34d399" /> },
+          { label: 'Monthly Savings', value: `₹${Number(userProfile.monthly_savings).toLocaleString('en-IN')}`, icon: <Wallet size={20} color="#38bdf8" /> },
+          { label: 'Risk Appetite', value: userProfile.risk_appetite, icon: <Scale size={20} color="#fbbf24" /> },
+          { label: 'Investment Goals', value: userProfile.investment_goals.join(', '), icon: <Target size={20} color="#fb7185" /> },
+          { label: 'Investment Horizon', value: `${userProfile.investment_horizon} years`, icon: <Telescope size={20} color="#a78bfa" /> },
         ];
+        const savingsRate = userProfile.monthly_income > 0
+          ? ((Number(userProfile.monthly_savings) / Number(userProfile.monthly_income)) * 100).toFixed(0)
+          : 0;
         return (
-          <div style={{ padding: '40px 20px', maxWidth: 1000, margin: '0 auto', color: '#fff' }}>
-            <motion.h1 
-              className="page-title" 
-              style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '2.5rem', marginBottom: '8px' }}
+          <div style={{ padding: '40px 28px', maxWidth: 960, margin: '0 auto', color: '#fff', position: 'relative' }}>
+            {/* Decorative mesh background */}
+            <div className="profile-mesh-bg" />
+
+            <motion.div
+              style={{ position: 'relative', zIndex: 2, marginBottom: 12 }}
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
             >
-              <User size={48} color="#0ea5e9" style={{ filter: 'drop-shadow(0 0 15px rgba(14, 165, 233, 0.4))' }} /> My Profile
-            </motion.h1>
-            <motion.p 
-              className="page-title-sub" 
-              style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '40px', letterSpacing: '0.5px' }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '3px', textTransform: 'uppercase', color: '#38bdf8', marginBottom: 8, opacity: 0.9 }}>
+                FINANCIAL COMMAND CENTER
+              </div>
+              <h1 className="page-title" style={{ fontSize: '2.4rem', marginBottom: 6 }}>
+                My <span style={{
+                  background: 'linear-gradient(135deg, #38bdf8, #a78bfa)',
+                  WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent'
+                }}>Profile</span>
+              </h1>
+              <p className="page-title-sub" style={{ marginBottom: 0, fontSize: '0.95rem' }}>
+                Your personalized wealth parameters driving AI recommendations
+              </p>
+            </motion.div>
+
+            {/* Summary Stats Bar */}
+            <motion.div
+              className="profile-summary-bar"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
             >
-              Your financial command center parameters
-            </motion.p>
-            
-            <motion.div 
+              <div className="profile-summary-item">
+                <div className="summary-number" style={{ color: '#34d399' }}>{savingsRate}%</div>
+                <div className="summary-label">Savings Rate</div>
+              </div>
+              <div className="profile-summary-item">
+                <div className="summary-number" style={{ color: '#38bdf8' }}>₹{Number(userProfile.monthly_savings).toLocaleString('en-IN')}</div>
+                <div className="summary-label">Monthly SIP Budget</div>
+              </div>
+              <div className="profile-summary-item">
+                <div className="summary-number" style={{ color: '#a78bfa' }}>{userProfile.investment_horizon}Y</div>
+                <div className="summary-label">Horizon</div>
+              </div>
+            </motion.div>
+
+            <motion.div
               className="hud-profile-card"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3, type: "spring", stiffness: 100 }}
-              style={{ maxWidth: '100%', padding: '40px' }}
+              transition={{ delay: 0.35, type: "spring", stiffness: 100 }}
+              style={{ maxWidth: '100%' }}
             >
               <div className="hud-profile-grid">
                 {profileData.map((item, index) => (
-                  <motion.div 
-                    key={item.label} 
+                  <motion.div
+                    key={item.label}
                     className="hud-stat-box"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 + (index * 0.1) }}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.45 + (index * 0.08) }}
                   >
                     <div className="hud-stat-icon">{item.icon}</div>
                     <div className="hud-stat-content">
@@ -366,11 +407,11 @@ const DashboardShell = ({ userProfile, onRecalculate }) => {
               <motion.button
                 className="hud-profile-btn"
                 onClick={onRecalculate}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.0 }}
               >
-                EDIT PROFILE & RECALCULATE
+                Edit Profile & Recalculate
               </motion.button>
             </motion.div>
           </div>
@@ -381,9 +422,17 @@ const DashboardShell = ({ userProfile, onRecalculate }) => {
         return <HelpTourScreen />;
       default:
         return (
-          <div style={{ padding: '40px 20px', maxWidth: 600, margin: '0 auto', color: '#fff', textAlign: 'center' }}>
-            <h1 className="page-title">🚧 Coming Soon</h1>
-            <p className="page-subtitle">This feature is under development.</p>
+          <div style={{ padding: '80px 20px', maxWidth: 600, margin: '0 auto', color: '#fff', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '3px', textTransform: 'uppercase', color: '#8b5cf6', marginBottom: 16, opacity: 0.8 }}>
+              IN DEVELOPMENT
+            </div>
+            <h1 className="page-title" style={{ fontSize: '2.4rem', marginBottom: 12 }}>
+              Coming <span style={{
+                background: 'linear-gradient(135deg, #8b5cf6, #38bdf8)',
+                WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent'
+              }}>Soon</span>
+            </h1>
+            <p className="page-subtitle" style={{ fontSize: '1rem' }}>This feature is currently under development and will be available shortly.</p>
           </div>
         );
     }
@@ -613,7 +662,7 @@ function AuthPage() {
                       className="toggle-password-btn"
                       onClick={() => setShowPassword(!showPassword)}
                     >
-                      {showPassword ? '🙈' : '👁️'}
+                      {showPassword ? <EyeOff size={16} color="#94a3b8" /> : <Eye size={16} color="#94a3b8" />}
                     </button>
                   </div>
                 </div>
@@ -689,7 +738,7 @@ function AuthPage() {
                       className="toggle-password-btn"
                       onClick={() => setShowPassword(!showPassword)}
                     >
-                      {showPassword ? '🙈' : '👁️'}
+                      {showPassword ? <EyeOff size={16} color="#94a3b8" /> : <Eye size={16} color="#94a3b8" />}
                     </button>
                   </div>
                   {regErrors.password && <span className="error-msg">{regErrors.password}</span>}
@@ -728,7 +777,7 @@ function AuthPage() {
                       className="toggle-password-btn"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
-                      {showConfirmPassword ? '🙈' : '👁️'}
+                      {showConfirmPassword ? <EyeOff size={16} color="#94a3b8" /> : <Eye size={16} color="#94a3b8" />}
                     </button>
                   </div>
                   {regErrors.confirmPassword && <span className="error-msg">{regErrors.confirmPassword}</span>}

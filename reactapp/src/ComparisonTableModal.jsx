@@ -14,21 +14,23 @@ const CATEGORY_COLORS = {
 };
 
 const INVESTMENT_ICONS = {
-  'ppf': '🛡️',
-  'scss': '👴',
-  'sukanya': '👧',
-  'rbi_bonds': '🏛️',
-  'fd': '🏦',
-  'debt_mf': '📜',
-  'nps': '⚖️',
-  'hybrid_mf': '📊',
-  'index_mf': '📈',
-  'gold_etf': '🥇',
-  'elss': '💰',
-  'nifty_etf': '🛒',
-  'midcap_mf': '🚀',
-  'smallcap_mf': '⚡',
-  'direct_equity': '📉'
+  'ppf': 'PP',
+  'scss': 'SC',
+  'sukanya': 'SS',
+  'rbi_bonds': 'RB',
+  'fd': 'FD',
+  'debt_mf': 'DM',
+  'nps': 'NP',
+  'hybrid_mf': 'HM',
+  'index_mf': 'IX',
+  'gold_etf': 'AU',
+  'elss': 'EL',
+  'nifty_etf': 'NF',
+  'midcap_mf': 'MC',
+  'smallcap_mf': 'SM',
+  'direct_equity': 'EQ',
+  'pmvvy': 'PM',
+  'sgb': 'SG'
 };
 
 const RISK_LABEL_TO_LEVEL = {
@@ -109,29 +111,34 @@ const Sparkline = ({ color, category, riskLevel, rate, invId }) => {
 
 const RiskLiquidityVisual = ({ risk, liquidity }) => {
   const percent = RISK_LABEL_TO_LEVEL[risk] || 50;
-  const color = percent <= 30 ? '#2dd4bf' : percent <= 60 ? '#fbbf24' : '#ef4444';
-  
+  const color = percent <= 30 ? '#34d399' : percent <= 60 ? '#fbbf24' : '#ef4444';
   const liqCount = liquidity === 'High' ? 5 : liquidity === 'Medium' ? 3 : 1;
-  const dots = [];
-  for (let i = 0; i < 5; i++) {
-    dots.push(
-      <div 
-        key={i} 
-        style={{
-          width: 5, height: 5, borderRadius: '50%',
-          background: i < liqCount ? '#fbbf24' : '#334155'
-        }}
-      />
-    );
-  }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <div style={{ width: 28, height: 10, background: '#1e293b', borderRadius: 6, overflow: 'hidden' }}>
-        <div style={{ width: `${percent}%`, height: '100%', background: color, boxShadow: `0 0 8px ${color}` }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      {/* Risk bar — segmented */}
+      <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        {[20, 40, 60, 80, 100].map((threshold, i) => (
+          <div key={i} style={{
+            width: 6, height: percent >= threshold ? 14 : 8,
+            borderRadius: 2,
+            background: percent >= threshold ? color : 'rgba(255,255,255,0.06)',
+            boxShadow: percent >= threshold ? `0 0 4px ${color}50` : 'none',
+            transition: 'all 0.3s ease',
+            opacity: percent >= threshold ? 1 : 0.4
+          }} />
+        ))}
       </div>
-      <div style={{ display: 'flex', gap: 4 }}>
-        {dots}
+      {/* Liquidity dots — refined */}
+      <div style={{ display: 'flex', gap: 3 }}>
+        {[0,1,2,3,4].map(i => (
+          <div key={i} style={{
+            width: 5, height: 5, borderRadius: '50%',
+            background: i < liqCount ? '#38bdf8' : 'rgba(255,255,255,0.06)',
+            boxShadow: i < liqCount ? '0 0 4px rgba(56,189,248,0.4)' : 'none',
+            transition: 'all 0.3s ease'
+          }} />
+        ))}
       </div>
     </div>
   );
@@ -301,12 +308,23 @@ const ComparisonTableModal = ({ isOpen, onClose, allInvestments, embedded }) => 
                   <tr key={invId} className={isSelected ? 'selected-row' : ''}>
                     <td>
                       <div className="inv-name-group">
-                        <div className="inv-icon-wrapper">
-                          {INVESTMENT_ICONS[invId] || '📄'}
+                        <div className="inv-icon-wrapper" style={{
+                          background: `linear-gradient(135deg, ${(CATEGORY_COLORS[cat] || '#888')}18, ${(CATEGORY_COLORS[cat] || '#888')}08)`,
+                          borderColor: `${(CATEGORY_COLORS[cat] || '#888')}30`
+                        }}>
+                          <span style={{
+                            fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.5px',
+                            color: CATEGORY_COLORS[cat] || '#94a3b8',
+                            fontFamily: 'Inter, monospace'
+                          }}>{INVESTMENT_ICONS[invId] || inv.abbr?.substring(0,2) || 'IN'}</span>
                         </div>
                         <div className="inv-name-details">
                           <div className="inv-title">{inv.abbr || inv.name}</div>
-                          <div className="inv-category-pill" style={{ color: isSelected ? undefined : CATEGORY_COLORS[cat] }}>{cat}</div>
+                          <div className="inv-category-pill" style={{
+                            color: isSelected ? undefined : CATEGORY_COLORS[cat],
+                            borderColor: isSelected ? undefined : `${(CATEGORY_COLORS[cat] || '#888')}30`,
+                            background: isSelected ? undefined : `${(CATEGORY_COLORS[cat] || '#888')}0a`
+                          }}>{cat}</div>
                         </div>
                       </div>
                     </td>

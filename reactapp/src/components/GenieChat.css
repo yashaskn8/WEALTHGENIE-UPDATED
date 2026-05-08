@@ -5,17 +5,26 @@
   width: 80px;
   height: 80px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #0ea5e9, #0284c7);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #0ea5e9, #7c3aed);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   cursor: pointer;
   z-index: 999;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 40px rgba(14, 165, 233, 0.6), inset 0 0 15px rgba(255,255,255,0.3);
-  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 
+    0 10px 40px rgba(14, 165, 233, 0.5),
+    0 0 60px rgba(124, 58, 237, 0.15),
+    inset 0 0 15px rgba(255,255,255,0.3);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
 }
-.genie-fab:hover { transform: scale(1.1) translateY(-5px); }
+.genie-fab:hover {
+  transform: scale(1.1) translateY(-5px);
+  box-shadow: 
+    0 16px 50px rgba(14, 165, 233, 0.6),
+    0 0 80px rgba(124, 58, 237, 0.2),
+    inset 0 0 20px rgba(255,255,255,0.35);
+}
 
 .genie-fab-logo {
   width: 55px;
@@ -45,16 +54,21 @@
   right: 20px;
   width: 420px;
   height: 650px;
-  background: rgba(8, 13, 20, 0.97);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 20px;
+  background: rgba(6, 10, 18, 0.98);
+  backdrop-filter: blur(48px) saturate(180%);
+  border: 1px solid rgba(139, 92, 246, 0.18);
+  border-top: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 24px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(139, 92, 246, 0.1);
-  animation: panelSlideUp 0.3s ease;
+  box-shadow: 
+    0 30px 80px rgba(0, 0, 0, 0.85),
+    0 0 50px rgba(139, 92, 246, 0.08),
+    0 0 100px rgba(14, 165, 233, 0.04),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  animation: panelSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes panelSlideUp {
@@ -67,9 +81,20 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 18px;
+  padding: 16px 20px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(14, 165, 233, 0.05));
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(14, 165, 233, 0.06), rgba(139, 92, 246, 0.04));
+  position: relative;
+}
+
+.genie-panel-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 10%;
+  width: 80%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.3), rgba(56, 189, 248, 0.2), transparent);
 }
 
 .genie-header-left {
