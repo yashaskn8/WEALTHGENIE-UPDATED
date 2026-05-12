@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch instruments: ' + err.message });
+    res.status(500).json({ error: 'Failed to fetch instruments.' });
   }
 });
 

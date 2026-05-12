@@ -35,9 +35,9 @@ router.post('/message', verifyJWT, async (req, res) => {
 
     return res.status(200).json(result);
   } catch (err) {
-    if (err.status === 429) return res.status(429).json({ error: err.message });
-    if (err.status === 400) return res.status(400).json({ error: err.message });
-    if (err.status === 502) return res.status(502).json({ error: err.message });
+    if (err.status === 429) return res.status(429).json({ error: 'Rate limit exceeded. Please wait before sending another message.' });
+    if (err.status === 400) return res.status(400).json({ error: 'Invalid message format.' });
+    if (err.status === 502) return res.status(502).json({ error: 'AI advisory service temporarily unavailable.' });
     console.error('[Chat] Error:', err);
     return res.status(500).json({ error: 'Genie is temporarily unavailable. Please try again.' });
   }

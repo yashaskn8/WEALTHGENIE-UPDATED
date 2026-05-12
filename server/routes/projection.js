@@ -39,7 +39,7 @@ router.post('/', verifyJWT, async (req, res) => {
 
     res.json(projections);
   } catch (err) {
-    res.status(500).json({ error: 'Projection failed: ' + err.message });
+    res.status(500).json({ error: 'Projection failed.' });
   }
 });
 

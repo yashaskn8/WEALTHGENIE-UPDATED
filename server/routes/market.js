@@ -35,7 +35,7 @@ router.get('/rates', async (req, res) => {
       last_live_refresh: summary.last_refresh,
     });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch market data: ' + err.message });
+    res.status(500).json({ error: 'Failed to fetch market data.' });
   }
 });
 
@@ -48,7 +48,7 @@ router.get('/params', async (req, res) => {
     const result = await getLiveInstrumentParams();
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch instrument params: ' + err.message });
+    res.status(500).json({ error: 'Failed to fetch instrument params.' });
   }
 });
 
@@ -77,7 +77,7 @@ router.post('/refresh', verifyJWT, async (req, res) => {
       message: 'Live data cache invalidated. New data will be fetched in background.',
     });
   } catch (err) {
-    res.status(500).json({ error: 'Refresh failed: ' + err.message });
+    res.status(500).json({ error: 'Refresh failed.' });
   }
 });
 

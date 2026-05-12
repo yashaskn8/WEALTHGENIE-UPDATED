@@ -119,7 +119,7 @@ router.post('/create', verifyJWT, async (req, res) => {
       years_remaining: yearsRemaining,
     });
   } catch (err) {
-    res.status(500).json({ error: 'Goal creation failed: ' + err.message });
+    res.status(500).json({ error: 'Goal creation failed.' });
   }
 });
 
@@ -199,7 +199,7 @@ router.get('/', verifyJWT, async (req, res) => {
 
     res.json({ goals: goalsArr });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch goals: ' + err.message });
+    res.status(500).json({ error: 'Failed to fetch goals.' });
   }
 });
 
@@ -217,7 +217,7 @@ router.patch('/:goalId/refresh-advice', verifyJWT, async (req, res) => {
     await goal.save();
     res.json({ goalId: goal._id, gemini_advice: newAdvice });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to refresh advice: ' + err.message });
+    res.status(500).json({ error: 'Failed to refresh advice.' });
   }
 });
 
@@ -230,7 +230,7 @@ router.delete('/:goalId', verifyJWT, async (req, res) => {
     if (!goal) return res.status(404).json({ error: 'Goal not found.' });
     res.json({ deleted: true, goalId: req.params.goalId });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete goal: ' + err.message });
+    res.status(500).json({ error: 'Failed to delete goal.' });
   }
 });
 

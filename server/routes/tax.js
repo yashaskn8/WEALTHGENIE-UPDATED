@@ -19,7 +19,7 @@ router.get('/compute', (req, res) => {
     const result = computeTax(income, regime);
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: 'Tax computation failed: ' + err.message });
+    res.status(500).json({ error: 'Tax computation failed.' });
   }
 });
 
@@ -65,7 +65,7 @@ router.get('/compare', (req, res) => {
       saving_with: recommended,
     });
   } catch (err) {
-    res.status(500).json({ error: 'Tax comparison failed: ' + err.message });
+    res.status(500).json({ error: 'Tax comparison failed.' });
   }
 });
 

@@ -74,7 +74,7 @@ router.post('/build', verifyJWT, async (req, res) => {
       investable_amount: investableAmount,
     });
   } catch (err) {
-    res.status(500).json({ error: 'Profile build failed: ' + err.message });
+    res.status(500).json({ error: 'Profile build failed.' });
   }
 });
 

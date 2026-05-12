@@ -24,7 +24,7 @@ router.post('/register', async (req, res) => {
     const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
     res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email } });
   } catch (err) {
-    res.status(500).json({ error: 'Registration failed: ' + err.message });
+    res.status(500).json({ error: 'Registration failed.' });
   }
 });
 
@@ -42,7 +42,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
     res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
   } catch (err) {
-    res.status(500).json({ error: 'Login failed: ' + err.message });
+    res.status(500).json({ error: 'Login failed.' });
   }
 });
 

@@ -125,7 +125,7 @@ router.post('/', verifyJWT, async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: 'Recommendation failed: ' + err.message });
+    res.status(500).json({ error: 'Recommendation failed.' });
   }
 });
 
