@@ -1,8 +1,7 @@
 # WealthGenie 🧞‍♂️💰
 
 ## AI-Powered Financial Advisory Platform for Indian Retail Investors
-
-WealthGenie is a context-aware, tax-optimized, AI-powered financial advisory web application designed for Indian retail investors. Built as a final-year CSE capstone project at RNSIT, Bengaluru, the platform delivers personalized, production-grade investment strategies grounded in machine learning explainability and probabilistic wealth forecasting.
+ the platform delivers personalized, production-grade investment strategies grounded in machine learning explainability and probabilistic wealth forecasting.
 
 ### 🦄 Unicorn Features (Advanced Engineering)
 - **SHAP Explainability Layer**: Uses `shap.TreeExplainer` in Python to provide exact feature-level attribution for every ML recommendation, ensuring total transparency in the AI's decision-making process.
@@ -247,29 +246,11 @@ Access the app at: **http://localhost:5173**
 
 ---
 
-## 📸 Screenshots
 
-| Screen | Preview |
-|--------|---------|
-| **Profile Creation** | ![InputForm](docs/screenshots/InputForm.png) |
-| **Recommendation Dashboard** | ![Dashboard](docs/screenshots/Dashboard.png) |
-| **Monte Carlo Projections** | ![MonteCarlo](docs/screenshots/MonteCarlo.png) |
-| **Goal Planner** | ![GoalPlanner](docs/screenshots/GoalPlanner.png) |
-| **Genie AI Chat** | ![GenieChat](docs/screenshots/GenieChat.png) |
-| **SHAP Explainability** | ![ExplainabilityPanel](docs/screenshots/ExplainabilityPanel.png) |
 
 ---
 
-## 👥 Team
 
-**Department of Computer Science & Engineering**
-**RNS Institute of Technology, Bengaluru**
-
-| Role           | Name              |
-|----------------|-------------------|
-| Developer      | Pranav Kumar      |
-| Developer      | Yashas K N        |
-| Guide          | Faculty, CSE Dept |
 
 ---
 
