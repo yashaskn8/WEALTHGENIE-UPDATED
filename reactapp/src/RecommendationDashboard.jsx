@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, ReferenceLine } from 'recharts';
 import { ChevronRight, ChevronDown, Filter, Info, Shield, TrendingUp, Zap, Trophy, BarChart3, AlertCircle, Calendar, Target, Activity, Wallet, PiggyBank, Clock, HelpCircle, Building2, MapPin, Star } from 'lucide-react';
 import { investmentDatabase, RISK_COLORS, CHART_COLORS } from './investmentDatabase';
-import { getEligibleInvestments, getWhy, computePostTaxReturn, GOAL_PROFILES } from './recommendationEngine';
+import { generateRecommendations, getEligibleInvestments, getWhy, computePostTaxReturn, GOAL_PROFILES } from './recommendationEngine';
 import { getConfidenceLabel } from './utils/confidenceLabels';
 import { validatePortfolio } from './utils/portfolioValidation';
 import { INSTRUMENT_EXPLAINERS, CARD_SUBTITLES, RISK_PLAIN_LABELS, getLockInWarning, detectRiskAgeMismatch } from './utils/instrumentExplainers';
@@ -22,7 +22,15 @@ const CATEGORY_COLORS = {
 };
 const DEFAULT_COLORS = ['#6366f1', '#06b6d4', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#a855f7'];
 
-const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, onRebalance, onNavigate, onLearnMore, isLoading: isLoadingProp, explanation }) => {
+// Map slider value (1-10) → risk appetite label
+const riskValueToLabel = (v) => {
+  const n = Number(v);
+  if (n <= 3) return 'Low';
+  if (n <= 7) return 'Medium';
+  return 'High';
+};
+
+const RecommendationDashboard = ({ userProfile, recommendations: propRecommendations, onExploreAll, onRebalance, onNavigate, onLearnMore, isLoading: isLoadingProp, explanation }) => {
   const defaultHorizon = userProfile?.investment_horizon || 15;
   const [horizon, setHorizon] = useState(defaultHorizon);
   const [initialCapital, setInitialCapital] = useState(Number(userProfile?.existing_savings) || 0);
@@ -48,6 +56,18 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
   useEffect(() => {
     setRiskValue(userProfile?.risk_appetite === 'High' ? 8 : userProfile?.risk_appetite === 'Medium' ? 6 : 3);
   }, [userProfile?.risk_appetite]);
+
+  // ─── Live re-computation: derive risk label from slider & regenerate recommendations ───
+  const derivedRiskLabel = riskValueToLabel(riskValue);
+  const recommendations = useMemo(() => {
+    // If the slider matches the original profile risk, use prop recommendations (includes backend data)
+    if (derivedRiskLabel === (userProfile?.risk_appetite || 'Medium')) {
+      return propRecommendations;
+    }
+    // Otherwise, re-generate locally with the overridden risk appetite
+    const modifiedProfile = { ...userProfile, risk_appetite: derivedRiskLabel };
+    return generateRecommendations(modifiedProfile);
+  }, [derivedRiskLabel, userProfile, propRecommendations]);
   const [expandedRows, setExpandedRows] = useState({});
   const [expandedWhyCards, setExpandedWhyCards] = useState({});
 
@@ -542,7 +562,7 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
 
             <div className="param-row">
               <span>Risk Profile</span>
-              <span style={{background: 'rgba(223, 189, 105, 0.12)', color: '#dfbd69', padding: '3px 10px', borderRadius: 6, fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.5px', border: '1px solid rgba(223, 189, 105, 0.2)'}}>{userProfile?.risk_appetite || 'Medium'}</span>
+              <span style={{background: derivedRiskLabel === 'High' ? 'rgba(244, 63, 94, 0.12)' : derivedRiskLabel === 'Low' ? 'rgba(34, 197, 94, 0.12)' : 'rgba(223, 189, 105, 0.12)', color: derivedRiskLabel === 'High' ? '#f43f5e' : derivedRiskLabel === 'Low' ? '#22c55e' : '#dfbd69', padding: '3px 10px', borderRadius: 6, fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.5px', border: `1px solid ${derivedRiskLabel === 'High' ? 'rgba(244, 63, 94, 0.2)' : derivedRiskLabel === 'Low' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(223, 189, 105, 0.2)'}`}}>{derivedRiskLabel}</span>
             </div>
             <input type="range" min="1" max="10" value={riskValue} onChange={e => setRiskValue(e.target.value)} className="dash-range" style={{'--value': `${((riskValue - 1) / 9) * 100}%`}} />
             <div className="risk-scale">
