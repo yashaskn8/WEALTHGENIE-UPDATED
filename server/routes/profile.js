@@ -3,6 +3,7 @@ import { verifyJWT } from '../middleware/authMiddleware.js';
 import { computeTax, getTaxSlab, compareTaxRegimes } from '../services/taxEngine.js';
 import { getRiskProfile } from '../services/riskProfiler.js';
 import FinancialProfile from '../models/FinancialProfile.js';
+import { redisClient } from '../config/redis.js';
 
 const router = Router();
 
@@ -60,6 +61,19 @@ router.post('/build', verifyJWT, async (req, res) => {
       investableAmount,
       investmentHorizon: Number(investment_horizon) || 15,
     });
+
+    // Invalidate chatbot system prompt cache so the AI gets the latest numbers instantly
+    if (redisClient) {
+      try {
+        const keys = await redisClient.keys(`chat:sysprompt_v3:${req.user.userId}:*`);
+        if (keys.length > 0) {
+          await Promise.all(keys.map(k => redisClient.del(k)));
+          console.log(`[Profile] Cleared ${keys.length} cached system prompts for user ${req.user.userId}`);
+        }
+      } catch (redisErr) {
+        console.warn('[Profile] Failed to clear prompt cache:', redisErr.message);
+      }
+    }
 
     res.status(201).json({
       profileId: profile._id,

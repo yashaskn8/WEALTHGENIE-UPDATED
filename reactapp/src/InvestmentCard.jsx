@@ -1,6 +1,24 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, ShieldAlert, Award } from 'lucide-react';
+import { ChevronDown, ChevronUp, ShieldAlert, ShieldCheck, Landmark } from 'lucide-react';
 import { formatINR } from './recommendationEngine';
+import { TRUST_BADGES } from './investmentDatabase';
+import JargonTooltip from './components/JargonTooltip';
+
+const TRUST_ICON_MAP = {
+  sovereign: <Landmark size={13} />,
+  rbi: <Landmark size={13} />,
+  insured: <ShieldCheck size={13} />,
+  regulated: <ShieldCheck size={13} />,
+  sebi: <ShieldCheck size={13} />,
+};
+
+const TRUST_COLOR_MAP = {
+  sovereign: { bg: 'rgba(56, 189, 248, 0.08)', border: 'rgba(56, 189, 248, 0.25)', text: '#7dd3fc' },
+  rbi:       { bg: 'rgba(56, 189, 248, 0.08)', border: 'rgba(56, 189, 248, 0.25)', text: '#7dd3fc' },
+  insured:   { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.25)', text: '#6ee7b7' },
+  regulated: { bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.25)', text: '#c4b5fd' },
+  sebi:      { bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.25)', text: '#c4b5fd' },
+};
 
 const RiskPill = ({ level }) => {
   const getRiskClass = (lvl) => {
@@ -25,6 +43,7 @@ const RiskPill = ({ level }) => {
 const InvestmentCard = ({ investment, horizon, onLearnMore }) => {
   const [showSubtypes, setShowSubtypes] = useState(false);
   const { name, category, expected_return_min, expected_return_max, risk_level, types, monthly_allocation, projected_value, tax_benefit } = investment;
+  const trustInfo = TRUST_BADGES[investment.id] || null;
 
   const getCategoryClass = (cat) => cat.toLowerCase();
 
@@ -37,18 +56,32 @@ const InvestmentCard = ({ investment, horizon, onLearnMore }) => {
 
       <div className="card-metrics">
         <div className="metric-block">
-          <span className="metric-label">Expected Return</span>
+          <span className="metric-label"><JargonTooltip term="Expected Return">Expected Return</JargonTooltip></span>
           <span className="metric-val">{expected_return_min}% – {expected_return_max}%</span>
         </div>
         <div className="metric-block">
-          <span className="metric-label">Risk Profile</span>
+          <span className="metric-label"><JargonTooltip term="Risk Profile">Risk Profile</JargonTooltip></span>
           <RiskPill level={risk_level} />
         </div>
       </div>
 
       {tax_benefit && (
-        <div className="tax-badge" style={{marginBottom: '16px'}}>
+        <div className="tax-badge" style={{marginBottom: '8px'}}>
           <ShieldAlert size={14} style={{marginRight:'4px'}} /> Tax Benefit Applicable
+        </div>
+      )}
+
+      {trustInfo && (
+        <div className="trust-anchor-badge" style={{
+          display: 'inline-flex', alignItems: 'center', gap: '6px',
+          background: TRUST_COLOR_MAP[trustInfo.type]?.bg || 'rgba(139,92,246,0.08)',
+          border: `1px solid ${TRUST_COLOR_MAP[trustInfo.type]?.border || 'rgba(139,92,246,0.25)'}`,
+          color: TRUST_COLOR_MAP[trustInfo.type]?.text || '#c4b5fd',
+          padding: '3px 10px', borderRadius: '20px',
+          fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.4px',
+          marginBottom: '16px', whiteSpace: 'nowrap',
+        }}>
+          {TRUST_ICON_MAP[trustInfo.type]} {trustInfo.label}
         </div>
       )}
 

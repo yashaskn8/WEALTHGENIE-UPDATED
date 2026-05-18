@@ -16,9 +16,9 @@ export function formatINR(val) {
   if (abs >= 1e12) return `${sign}₹${(num / 1e12).toFixed(2)} L Cr`;   // Lakh Crore
   if (abs >= 1e10) return `${sign}₹${(num / 1e10).toFixed(2)} K Cr`;   // Thousand Crore
   if (abs >= 10000000) {
-    return `₹${(num / 10000000).toFixed(2)} Cr`;
+    return `${sign}₹${(abs / 10000000).toFixed(2)} Cr`;
   } else if (abs >= 100000) {
-    return `₹${(num / 100000).toFixed(2)} L`;
+    return `${sign}₹${(abs / 100000).toFixed(2)} L`;
   }
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',

@@ -54,6 +54,98 @@ const StepUpPlanner = ({ profile }) => {
 
   return (
     <div className="stepup-page" style={{ position: 'relative', overflow: 'hidden' }}>
+      <style>{`
+        /* Scoped overrides for Step-Up Planner range sliders */
+        .sup-slider {
+          -webkit-appearance: none !important;
+          appearance: none !important;
+          width: 100% !important;
+          height: 20px !important;
+          background: transparent !important;
+          outline: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          border: none !important;
+          box-sizing: border-box !important;
+          cursor: pointer !important;
+        }
+
+        .sup-slider::-webkit-slider-runnable-track {
+          width: 100% !important;
+          height: 4px !important;
+          border-radius: 100px !important;
+          background: var(--sup-track-gradient, rgba(255,255,255,0.06)) !important;
+          box-shadow: inset 0 1px 3px rgba(0,0,0,0.5) !important;
+          border: none !important;
+          box-sizing: border-box !important;
+        }
+
+        .sup-slider::-webkit-slider-thumb {
+          -webkit-appearance: none !important;
+          appearance: none !important;
+          width: 12px !important;
+          height: 12px !important;
+          margin-top: -4px !important;
+          box-sizing: border-box !important;
+          border-radius: 50% !important;
+          background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e2e8f0 60%, #94a3b8 100%) !important;
+          border: 2px solid #0ea5e9 !important;
+          cursor: pointer !important;
+          box-shadow: 0 0 10px rgba(14, 165, 233, 0.5), 0 1px 4px rgba(0,0,0,0.4) !important;
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease !important;
+        }
+
+        .sup-slider::-webkit-slider-thumb:hover {
+          transform: scale(1.25) !important;
+          box-shadow: 0 0 18px rgba(14, 165, 233, 0.7), 0 0 5px rgba(14, 165, 233, 0.4), 0 2px 6px rgba(0,0,0,0.5) !important;
+        }
+
+        .sup-slider::-webkit-slider-thumb:active {
+          transform: scale(1.1) !important;
+        }
+
+        .sup-slider-purple::-webkit-slider-thumb {
+          border-color: #a78bfa !important;
+          box-shadow: 0 0 10px rgba(167, 139, 250, 0.5), 0 1px 4px rgba(0,0,0,0.4) !important;
+        }
+
+        .sup-slider-purple::-webkit-slider-thumb:hover {
+          box-shadow: 0 0 18px rgba(167, 139, 250, 0.7), 0 0 5px rgba(167, 139, 250, 0.4), 0 2px 6px rgba(0,0,0,0.5) !important;
+        }
+
+        /* Firefox support */
+        .sup-slider::-moz-range-track {
+          width: 100% !important;
+          height: 4px !important;
+          border-radius: 100px !important;
+          background: var(--sup-track-gradient, rgba(255,255,255,0.06)) !important;
+          box-shadow: inset 0 1px 3px rgba(0,0,0,0.5) !important;
+          border: none !important;
+          box-sizing: border-box !important;
+        }
+
+        .sup-slider::-moz-range-thumb {
+          width: 12px !important;
+          height: 12px !important;
+          box-sizing: border-box !important;
+          border-radius: 50% !important;
+          background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e2e8f0 60%, #94a3b8 100%) !important;
+          border: 2px solid #0ea5e9 !important;
+          cursor: pointer !important;
+          box-shadow: 0 0 10px rgba(14, 165, 233, 0.5), 0 1px 4px rgba(0,0,0,0.4) !important;
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease !important;
+        }
+
+        .sup-slider-purple::-moz-range-thumb {
+          border-color: #a78bfa !important;
+          box-shadow: 0 0 10px rgba(167, 139, 250, 0.5), 0 1px 4px rgba(0,0,0,0.4) !important;
+        }
+
+        .sup-slider::-moz-range-thumb:hover,
+        .sup-slider-purple::-moz-range-thumb:hover {
+          transform: scale(1.25) !important;
+        }
+      `}</style>
       {/* Floating Ambient Orbs */}
       <div className="sup-bg-orb sup-bg-orb--1"></div>
       <div className="sup-bg-orb sup-bg-orb--2"></div>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, ReferenceLine } from 'recharts';
-import { ChevronRight, ChevronDown, Filter, Info, Shield, TrendingUp, Zap, Trophy, BarChart3, AlertCircle, Calendar, Target, Activity, Wallet, PiggyBank, Clock, HelpCircle } from 'lucide-react';
+import { ChevronRight, ChevronDown, Filter, Info, Shield, TrendingUp, Zap, Trophy, BarChart3, AlertCircle, Calendar, Target, Activity, Wallet, PiggyBank, Clock, HelpCircle, Building2, MapPin, Star } from 'lucide-react';
 import { investmentDatabase, RISK_COLORS, CHART_COLORS } from './investmentDatabase';
 import { getEligibleInvestments, getWhy, computePostTaxReturn, GOAL_PROFILES } from './recommendationEngine';
 import { getConfidenceLabel } from './utils/confidenceLabels';
@@ -8,6 +8,7 @@ import { validatePortfolio } from './utils/portfolioValidation';
 import { INSTRUMENT_EXPLAINERS, CARD_SUBTITLES, RISK_PLAIN_LABELS, getLockInWarning, detectRiskAgeMismatch } from './utils/instrumentExplainers';
 import ExplainabilityPanel from './components/ExplainabilityPanel';
 import SebiDisclaimer from './components/SebiDisclaimer';
+
 import './Dashboard.css';
 
 const CATEGORY_COLORS = {
@@ -21,7 +22,7 @@ const CATEGORY_COLORS = {
 };
 const DEFAULT_COLORS = ['#6366f1', '#06b6d4', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#a855f7'];
 
-const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, onRebalance, onNavigate, isLoading: isLoadingProp, explanation }) => {
+const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, onRebalance, onNavigate, onLearnMore, isLoading: isLoadingProp, explanation }) => {
   const defaultHorizon = userProfile?.investment_horizon || 15;
   const [horizon, setHorizon] = useState(defaultHorizon);
   const [initialCapital, setInitialCapital] = useState(Number(userProfile?.existing_savings) || 0);
@@ -49,6 +50,7 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
   }, [userProfile?.risk_appetite]);
   const [expandedRows, setExpandedRows] = useState({});
   const [expandedWhyCards, setExpandedWhyCards] = useState({});
+
   const [sortField, setSortField] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [riskGroupOpen, setRiskGroupOpen] = useState({
@@ -276,6 +278,76 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
 
   return (
     <div className="dashboard-page">
+      <style>{`
+        /* Scoped overrides for dashboard parameter range sliders */
+        .dash-range {
+          -webkit-appearance: none !important;
+          appearance: none !important;
+          width: 100% !important;
+          background: transparent !important;
+          height: 20px !important;
+          outline: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          border: none !important;
+          box-sizing: border-box !important;
+        }
+
+        .dash-range::-webkit-slider-runnable-track {
+          width: 100% !important;
+          height: 4px !important;
+          background: linear-gradient(to right, var(--accent-teal) var(--value, 0%), rgba(255, 255, 255, 0.06) var(--value, 0%)) !important;
+          border-radius: 2px !important;
+          border: none !important;
+          box-sizing: border-box !important;
+        }
+
+        .dash-range::-webkit-slider-thumb {
+          -webkit-appearance: none !important;
+          appearance: none !important;
+          height: 12px !important;
+          width: 12px !important;
+          border-radius: 50% !important;
+          background: #ffffff !important;
+          border: 2.5px solid var(--accent-teal) !important;
+          cursor: pointer !important;
+          box-shadow: 0 0 8px rgba(56, 189, 248, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+          transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease !important;
+          margin-top: -4px !important;
+          box-sizing: border-box !important;
+        }
+
+        .dash-range::-webkit-slider-thumb:hover {
+          transform: scale(1.2) !important;
+          box-shadow: 0 0 12px rgba(56, 189, 248, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        .dash-range::-moz-range-track {
+          width: 100% !important;
+          height: 4px !important;
+          background: rgba(255, 255, 255, 0.06) !important;
+          border-radius: 2px !important;
+          border: none !important;
+          box-sizing: border-box !important;
+        }
+
+        .dash-range::-moz-range-thumb {
+          height: 12px !important;
+          width: 12px !important;
+          border-radius: 50% !important;
+          background: #ffffff !important;
+          border: 2.5px solid var(--accent-teal) !important;
+          cursor: pointer !important;
+          box-shadow: 0 0 8px rgba(56, 189, 248, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+          transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease !important;
+          box-sizing: border-box !important;
+        }
+
+        .dash-range::-moz-range-thumb:hover {
+          transform: scale(1.2) !important;
+          box-shadow: 0 0 12px rgba(56, 189, 248, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+        }
+      `}</style>
       <div className="dashboard-container" style={{maxWidth: 1600, margin: '0 auto'}}>
         
         <div className="dashboard-header" style={{position: 'relative', paddingBottom: 20, marginBottom: 6}}>
@@ -1370,6 +1442,40 @@ const RecommendationDashboard = ({ userProfile, recommendations, onExploreAll, o
                           </div>
                         ))}
                       </div>
+                    )}
+
+
+
+                    {/* ═══ LEARN MORE — Opens full deep-dive page ═══ */}
+                    {onLearnMore && (
+                      <button
+                        onClick={() => onLearnMore(rec)}
+                        style={{
+                          width: '100%', marginTop: 12, padding: '10px 16px',
+                          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(56, 189, 248, 0.08))',
+                          border: '1px solid rgba(139, 92, 246, 0.25)',
+                          borderRadius: 12, color: '#a78bfa', cursor: 'pointer',
+                          fontSize: '0.78rem', fontWeight: 700, fontFamily: 'inherit',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                          letterSpacing: '0.3px'
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.22), rgba(56, 189, 248, 0.14))';
+                          e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.4)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.boxShadow = '0 4px 20px rgba(139, 92, 246, 0.15)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(56, 189, 248, 0.08))';
+                          e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.25)';
+                          e.currentTarget.style.transform = 'none';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        Learn More — Full Deep Dive
+                        <ChevronRight size={14} />
+                      </button>
                     )}
                   </div>
                 );

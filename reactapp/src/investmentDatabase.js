@@ -76,6 +76,27 @@ export const CONCENTRATION_CAPS = {
   nps: { maxPct: 25, badge: "Illiquid until age 60 — plan accordingly" },
 };
 
+// ─── TRUST & SAFETY BADGES ──────────────────────────────────────
+export const TRUST_BADGES = {
+  ppf:      { type: 'sovereign', label: 'Sovereign Guarantee', body: 'Government of India', desc: 'Your principal and interest are 100% guaranteed by the Government of India. Zero default risk — even if the post office or bank fails, the government backs every rupee.' },
+  scss:     { type: 'sovereign', label: 'Sovereign Guarantee', body: 'Government of India', desc: 'Backed by the full faith and credit of the Government of India. Quarterly interest payouts are guaranteed regardless of market conditions.' },
+  pmvvy:    { type: 'sovereign', label: 'Sovereign Guarantee', body: 'LIC of India (Govt.)', desc: 'Pension scheme managed by LIC with an explicit Government of India guarantee. Your pension payouts are assured for the full 10-year term.' },
+  sukanya:  { type: 'sovereign', label: 'Sovereign Guarantee', body: 'Government of India', desc: 'EEE tax-free scheme with sovereign guarantee. The government guarantees both the principal and the 8.2% interest rate for the entire 21-year tenure.' },
+  rbi_bonds:{ type: 'sovereign', label: 'RBI Sovereign Bond', body: 'Reserve Bank of India', desc: 'Issued directly by the Reserve Bank of India. Carries the highest possible credit rating — equivalent to holding government currency.' },
+  sgb:      { type: 'rbi',      label: 'RBI Issued · Tax-Free at Maturity', body: 'Reserve Bank of India', desc: 'Sovereign Gold Bonds are issued by RBI on behalf of the Government of India. Capital gains at 8-year maturity are completely tax-free under Section 47(viic).' },
+  fd:       { type: 'insured',  label: 'DICGC Insured up to ₹5 Lakhs', body: 'Deposit Insurance (RBI)', desc: 'Your deposit is insured up to ₹5,00,000 per depositor per bank by DICGC, a wholly-owned subsidiary of the Reserve Bank of India. Even if the bank fails, your money is protected.' },
+  nps:      { type: 'regulated',label: 'PFRDA Regulated', body: 'Pension Fund Regulatory Authority', desc: 'Regulated by the Pension Fund Regulatory & Development Authority (PFRDA), a statutory body under the Government of India. Fund managers are selected and monitored by PFRDA.' },
+  debt_mf:  { type: 'sebi',     label: 'SEBI Regulated', body: 'Securities & Exchange Board of India', desc: 'All mutual funds in India are regulated by SEBI. Your money is held in a separate trust (not by the fund company), so even if the AMC shuts down, your investments are safe.' },
+  hybrid_mf:{ type: 'sebi',     label: 'SEBI Regulated', body: 'Securities & Exchange Board of India', desc: 'SEBI-regulated mutual fund with mandatory daily NAV disclosure. Fund assets are held in a custodian trust, separate from the AMC\'s own assets.' },
+  index_mf: { type: 'sebi',     label: 'SEBI Regulated · Passive Fund', body: 'Securities & Exchange Board of India', desc: 'Passively managed SEBI-regulated fund that simply mirrors the Nifty 50 index. No fund manager bias — lowest expense ratios in the equity category.' },
+  gold_etf: { type: 'sebi',     label: 'SEBI Regulated · Exchange Traded', body: 'Securities & Exchange Board of India', desc: 'SEBI-regulated ETF backed by 99.5% pure physical gold held in secure vaults. Traded on NSE/BSE with real-time pricing and full transparency.' },
+  elss:     { type: 'sebi',     label: 'SEBI Regulated · 80C Eligible', body: 'Securities & Exchange Board of India', desc: 'SEBI-regulated equity mutual fund with the shortest lock-in (3 years) among all Section 80C instruments. Fund assets held in independent custodian trust.' },
+  nifty_etf:{ type: 'sebi',     label: 'SEBI Regulated · Exchange Traded', body: 'Securities & Exchange Board of India', desc: 'SEBI-regulated ETF tracking the Nifty 50 index. Traded on NSE/BSE with real-time settlement via your demat account.' },
+  midcap_mf:{ type: 'sebi',     label: 'SEBI Regulated', body: 'Securities & Exchange Board of India', desc: 'SEBI-regulated mutual fund investing in mid-cap companies (rank 101-250 by market cap). Subject to SEBI\'s strict portfolio disclosure and risk management norms.' },
+  smallcap_mf:{ type: 'sebi',   label: 'SEBI Regulated', body: 'Securities & Exchange Board of India', desc: 'SEBI-regulated mutual fund with mandatory minimum 65% allocation to small-cap stocks. Subject to quarterly portfolio disclosure and NAV transparency rules.' },
+  direct_equity:{ type: 'sebi',  label: 'SEBI Regulated · Exchange Traded', body: 'NSE/BSE (SEBI Regulated)', desc: 'Stocks traded on SEBI-regulated exchanges (NSE/BSE). All trades are settled through CDSL/NSDL depositories with T+1 settlement guarantee.' },
+};
+
 // ─── 16-INSTRUMENT CATALOGUE ─────────────────────────────────────
 
 export const investmentDatabase = [
@@ -199,7 +220,7 @@ export const investmentDatabase = [
     name: "Bank Fixed Deposit",
     abbr: "FD",
     cat: "Debt",
-    rate: 7.25,
+    rate: 6.5,
     risk: 2,
     riskLabel: "Low",
     lockIn: 0,
@@ -214,14 +235,14 @@ export const investmentDatabase = [
       minMonthlySavings: 1000,
       notes: "5-year tax-saver FDs qualify for 80C deduction. DICGC insurance up to ₹5L per bank."
     },
-    desc: "Guaranteed returns with DICGC deposit insurance up to ₹5L. Most liquid low-risk option."
+    desc: "Guaranteed returns with DICGC deposit insurance up to ₹5L. Major bank rates: SBI 6.45%, HDFC/ICICI 6.50%. Senior citizens get 0.25-0.50% extra. Interest taxable at slab rate."
   },
   {
     id: "sgb",
     name: "Sovereign Gold Bond (SGB)",
     abbr: "SGB",
     cat: "Commodity",
-    rate: 10.5,
+    rate: 13.0,
     risk: 2,
     riskLabel: "Low-Medium",
     lockIn: 8,
@@ -236,7 +257,7 @@ export const investmentDatabase = [
       minMonthlySavings: 2000,
       notes: "Capital gains at maturity are 100% tax-free. 2.5% annual interest is taxable at slab rates. Best held to maturity. Suitable as 5-10% of portfolio as inflation hedge."
     },
-    desc: "Best gold instrument. Capital gains at 8-year maturity are completely tax-free. Earns 2.5% p.a. interest in addition to gold price appreciation."
+    desc: "Best gold instrument. Capital gains at 8-year maturity are completely tax-free. Earns 2.5% p.a. interest in addition to gold price appreciation. ~13% 5Y CAGR (May 2026)."
   },
 
   // ═══════════════════  MEDIUM RISK (risk: 3) — 5 instruments  ═══════════════════
@@ -245,7 +266,7 @@ export const investmentDatabase = [
     name: "Debt Mutual Fund",
     abbr: "Debt MF",
     cat: "Debt",
-    rate: 7.5,
+    rate: 7.0,
     risk: 3,
     riskLabel: "Medium-Low",
     lockIn: 0,
@@ -267,7 +288,7 @@ export const investmentDatabase = [
     name: "National Pension System (NPS)",
     abbr: "NPS",
     cat: "Government",
-    rate: 10.5,
+    rate: 13.0,
     risk: 3,
     riskLabel: "Medium",
     lockIn: 0,
@@ -291,7 +312,7 @@ export const investmentDatabase = [
     name: "Balanced Advantage Fund",
     abbr: "Hybrid MF",
     cat: "Equity-Debt",
-    rate: 11.0,
+    rate: 14.0,
     risk: 3,
     riskLabel: "Medium",
     lockIn: 0,
@@ -335,7 +356,7 @@ export const investmentDatabase = [
     name: "Gold ETF",
     abbr: "Gold ETF",
     cat: "Commodity",
-    rate: 8.5,
+    rate: 14.0,
     risk: 3,
     riskLabel: "Medium",
     lockIn: 0,
@@ -350,7 +371,7 @@ export const investmentDatabase = [
       minMonthlySavings: 500,
       notes: "Requires demat account. Returns taxed as LTCG. SGB is superior for long-horizon investors."
     },
-    desc: "Liquid gold exposure via demat account. No lock-in. Gains taxed as LTCG at 12.5%. Less tax-efficient than SGB but more liquid."
+    desc: "Liquid gold exposure via demat account. No lock-in. Gains taxed as LTCG at 12.5%. ~24% 5Y CAGR (May 2026) due to global safe-haven demand. Less tax-efficient than SGB but more liquid."
   },
 
   // ═══════════════════  HIGH RISK (risk: 4 or 5) — 5 instruments  ═══════════════════
@@ -359,7 +380,7 @@ export const investmentDatabase = [
     name: "ELSS Mutual Fund",
     abbr: "ELSS",
     cat: "Equity",
-    rate: 13.5,
+    rate: 16.0,
     risk: 4,
     riskLabel: "High",
     lockIn: 3,
@@ -403,7 +424,7 @@ export const investmentDatabase = [
     name: "Mid-Cap Mutual Fund",
     abbr: "Mid-Cap MF",
     cat: "Equity",
-    rate: 15.5,
+    rate: 22.0,
     risk: 4,
     riskLabel: "High",
     lockIn: 0,
@@ -418,14 +439,14 @@ export const investmentDatabase = [
       minMonthlySavings: 5000,
       notes: "Higher volatility. Only suitable under 50 with horizon >= 7 years."
     },
-    desc: "High-growth equity exposure via mid-cap companies. Historical 15.5% CAGR."
+    desc: "High-growth equity exposure via mid-cap companies. ~22% 5Y CAGR (May 2026). Best performers: Motilal Oswal ~24%, HDFC ~22%."
   },
   {
     id: "smallcap_mf",
     name: "Small-Cap Mutual Fund",
     abbr: "Small-Cap MF",
     cat: "Equity",
-    rate: 17.0,
+    rate: 23.0,
     risk: 5,
     riskLabel: "Very High",
     lockIn: 0,
@@ -440,7 +461,7 @@ export const investmentDatabase = [
       minMonthlySavings: 8000,
       notes: "Only for: age 21–45, horizon >= 10, risk = high, income >= ₹8L, savings >= ₹8,000/mo."
     },
-    desc: "Highest potential equity return with proportionally high risk. Best as 10–15% allocation."
+    desc: "Highest potential equity return with proportionally high risk. ~23% 5Y CAGR (May 2026). Best as 10–15% allocation."
   },
   {
     id: "direct_equity",

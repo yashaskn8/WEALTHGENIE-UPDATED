@@ -1,181 +1,278 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Send, Copy, Trash2, Sparkles, RefreshCw } from 'lucide-react';
+import { X, Send, Copy, Trash2, Sparkles, RefreshCw, TrendingUp, TrendingDown, Minus, Shield, Target, BarChart3, Zap, AlertTriangle, DollarSign, ChevronRight, ThumbsUp, ThumbsDown, Mic, MicOff } from 'lucide-react';
 import './GenieChat.css';
 import chatGenie from '../assets/chat_genie.png';
 import * as api from '../services/api';
 
-// ── Suggested questions derived from user profile context ─────────
+// ── Suggested questions ───────────────────────────────────────────
 function getSuggestedQuestions(profile) {
   if (!profile) return [];
   const questions = [
-    'How much tax will I pay this financial year?',
-    'Is ELSS better than PPF for my tax bracket?',
-    'What is my actual post-tax return on an FD right now?',
-    'How much should I invest monthly to retire at 60?',
+    'How should I rebalance my portfolio?',
+    'How much tax will I save with ELSS?',
+    'What is my ideal SIP amount for retirement?',
+    'Should I increase my equity allocation?',
   ];
-  if (profile.risk_appetite === 'High') {
-    questions.unshift('Should I increase my equity allocation?');
-  }
-  if (profile.age > 45) {
-    questions.unshift('How should I shift my portfolio as I near retirement?');
-  }
+  if (profile.risk_appetite === 'High') questions.unshift('Can I take more risk for higher returns?');
+  if (profile.age > 45) questions.unshift('How should I shift my portfolio as I near retirement?');
   return questions.slice(0, 4);
 }
 
-// ── FAB Button ────────────────────────────────────────────────────
-const GenieFAB = ({ onClick }) => (
-  <button className="genie-fab" onClick={onClick} title="Ask Genie">
-    <img src={chatGenie} alt="Genie AI" className="genie-fab-logo" />
-    <span className="genie-fab-ring"></span>
-  </button>
-);
+// ── Parse ACTION_CARD blocks from AI response ─────────────────────
+function parseActionCards(text) {
+  const cards = [];
+  const regex = /<<<ACTION_CARD>>>\s*([\s\S]*?)\s*<<<END_ACTION_CARD>>>/g;
+  let match;
+  let cleanText = text;
+  while ((match = regex.exec(text)) !== null) {
+    try {
+      let jsonStr = match[1].replace(/^```json?\s*/gm, '').replace(/^```\s*$/gm, '').trim();
+      const card = JSON.parse(jsonStr);
+      cards.push(card);
+      cleanText = cleanText.replace(match[0], '');
+    } catch (e) {
+      console.warn('[GenieChat] Failed to parse action card:', e.message);
+    }
+  }
+  return { cleanText: cleanText.trim(), cards };
+}
 
-// ── Robust inline Markdown renderer ───────────────────────────────
-/**
- * Renders inline formatting within a single line of text.
- * Handles: **bold**, *italic*, and plain text.
- * Strips any remaining Markdown syntax that slipped through.
- */
+// ── Severity theme config ─────────────────────────────────────────
+const severityColors = {
+  info: { bg: 'rgba(56,189,248,0.08)', border: 'rgba(56,189,248,0.25)', accent: '#38bdf8', glow: 'rgba(56,189,248,0.15)' },
+  success: { bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.25)', accent: '#22c55e', glow: 'rgba(34,197,94,0.15)' },
+  warning: { bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.25)', accent: '#f59e0b', glow: 'rgba(245,158,11,0.15)' },
+  critical: { bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)', accent: '#ef4444', glow: 'rgba(239,68,68,0.15)' },
+};
+const cardIcons = { rebalance: <BarChart3 size={18}/>, sip_stepup: <TrendingUp size={18}/>, tax_save: <Shield size={18}/>, goal_insight: <Target size={18}/>, market_alert: <AlertTriangle size={18}/>, fee_xray: <DollarSign size={18}/> };
+const trendIcons = { up: <TrendingUp size={13} style={{color:'#22c55e'}}/>, down: <TrendingDown size={13} style={{color:'#ef4444'}}/>, neutral: <Minus size={13} style={{color:'#64748b'}}/> };
+
+// ── Sparkline Mini-Chart (inline bar chart for metrics) ───────────
+function SparkBars({ data, color }) {
+  if (!data || !data.length) return null;
+  const max = Math.max(...data);
+  return (
+    <div className="spark-bars">
+      {data.map((v, i) => (
+        <div key={i} className="spark-bar" style={{ height: `${(v / max) * 100}%`, background: color || '#38bdf8', opacity: 0.4 + (i / data.length) * 0.6 }} />
+      ))}
+    </div>
+  );
+}
+
+// ── Action Card Component ─────────────────────────────────────────
+function ActionCard({ card, onAction }) {
+  const colors = severityColors[card.severity] || severityColors.info;
+  const icon = cardIcons[card.type] || <Zap size={18}/>;
+  const [executed, setExecuted] = useState(null);
+
+  const handleAction = (action) => {
+    if (action.action === 'navigate' && action.target) window.location.hash = action.target;
+    setExecuted(action.label);
+    if (onAction) onAction(action);
+  };
+
+  return (
+    <div className="action-card" style={{ '--ac-bg': colors.bg, '--ac-border': colors.border, '--ac-accent': colors.accent, '--ac-glow': colors.glow }}>
+      <div className="ac-header">
+        <div className="ac-icon-wrap" style={{ color: colors.accent }}>{icon}</div>
+        <div className="ac-header-text">
+          <div className="ac-title">{card.title}</div>
+          <div className="ac-subtitle">{card.subtitle}</div>
+        </div>
+        <div className="ac-severity-dot" style={{ background: colors.accent }} />
+      </div>
+      {card.metrics?.length > 0 && (
+        <div className="ac-metrics">
+          {card.metrics.map((m, i) => (
+            <div key={i} className="ac-metric">
+              <div className="ac-metric-label">{m.label}</div>
+              <div className="ac-metric-value">{m.value}{m.trend && <span className="ac-trend">{trendIcons[m.trend]}</span>}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {card.sparkData && <SparkBars data={card.sparkData} color={colors.accent} />}
+      {card.insight && (
+        <div className="ac-insight">
+          <Sparkles size={12} style={{ color: colors.accent, flexShrink: 0, marginTop: 2 }} />
+          <span>{card.insight}</span>
+        </div>
+      )}
+      {card.actions?.length > 0 && (
+        <div className="ac-actions">
+          {card.actions.map((action, i) => (
+            <button key={i} className={`ac-btn ${i === 0 ? 'ac-btn-primary' : 'ac-btn-secondary'} ${executed === action.label ? 'ac-btn-executed' : ''}`} onClick={() => handleAction(action)} disabled={!!executed} style={i === 0 ? { '--btn-accent': colors.accent } : {}}>
+              {executed === action.label ? <>✓ Done</> : <>{action.label}<ChevronRight size={14} /></>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Confidence Meter ──────────────────────────────────────────────
+function ConfidenceMeter({ level }) {
+  const pct = level === 'high' ? 95 : level === 'medium' ? 70 : 40;
+  const color = pct > 80 ? '#22c55e' : pct > 55 ? '#f59e0b' : '#ef4444';
+  return (
+    <div className="confidence-meter" title={`AI Confidence: ${pct}%`}>
+      <div className="confidence-track"><div className="confidence-fill" style={{ width: `${pct}%`, background: color }} /></div>
+      <span className="confidence-label" style={{ color }}>{pct}%</span>
+    </div>
+  );
+}
+
+// ── Message Feedback (thumbs up/down) ─────────────────────────────
+function MessageFeedback({ msgIndex }) {
+  const [feedback, setFeedback] = useState(null);
+  return (
+    <div className="msg-feedback">
+      <button className={`fb-btn ${feedback === 'up' ? 'fb-active-up' : ''}`} onClick={() => setFeedback('up')} title="Helpful"><ThumbsUp size={11} /></button>
+      <button className={`fb-btn ${feedback === 'down' ? 'fb-active-down' : ''}`} onClick={() => setFeedback('down')} title="Not helpful"><ThumbsDown size={11} /></button>
+    </div>
+  );
+}
+
+// ── Inline Markdown renderer ──────────────────────────────────────
 function renderInline(line) {
   if (!line) return null;
-
-  // Strip raw Markdown headers (### ## #) — replace with bold
-  const cleanedLine = line
-    .replace(/^#{1,3}\s+/, '')   // Remove leading ### or ## or #
-    .replace(/^[*-]\s+/, '')      // Remove leading * or - bullets
-    .replace(/^>\s+/, '');        // Remove blockquote >
-
-  // Split on **bold** and *italic* markers
-  const parts = cleanedLine.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
-
+  const cleaned = line.replace(/^#{1,3}\s+/, '').replace(/^[*-]\s+/, '').replace(/^>\s+/, '');
+  const parts = cleaned.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
   return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i}>{part.slice(2, -2)}</strong>;
-    }
-    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
-      return <em key={i}>{part.slice(1, -1)}</em>;
-    }
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) return <em key={i}>{part.slice(1, -1)}</em>;
     return <span key={i}>{part}</span>;
   });
 }
 
-// ── Renders message content with robust Markdown handling ─────────
-function MessageContent({ content }) {
+// ── Message Content with Action Cards ─────────────────────────────
+function MessageContent({ content, onAction }) {
   if (!content) return null;
-
-  const lines = content.split('\n');
-
+  const { cleanText, cards } = parseActionCards(content);
+  const lines = cleanText.split('\n');
   return (
     <span className="genie-message-content">
-      {lines.map((line, lineIndex) => {
-        const isLast = lineIndex === lines.length - 1;
-
-        // Skip rendering empty lines at the end
-        if (!line.trim() && isLast) return null;
-
-        return (
-          <span key={lineIndex}>
-            {renderInline(line)}
-            {!isLast && <br />}
-          </span>
-        );
+      {lines.map((line, li) => {
+        if (!line.trim() && li === lines.length - 1) return null;
+        return <span key={li}>{renderInline(line)}{li < lines.length - 1 && <br />}</span>;
       })}
+      {cards.map((card, i) => <ActionCard key={i} card={card} onAction={onAction} />)}
     </span>
   );
 }
 
+// ── Streamed Typing Effect ────────────────────────────────────────
+function useStreamedText(text, speed = 8) {
+  const [displayed, setDisplayed] = useState('');
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (!text) return;
+    setDisplayed('');
+    setDone(false);
+    let i = 0;
+    const id = setInterval(() => {
+      i += 2;
+      if (i >= text.length) { setDisplayed(text); setDone(true); clearInterval(id); }
+      else setDisplayed(text.slice(0, i));
+    }, speed);
+    return () => clearInterval(id);
+  }, [text, speed]);
+  return { displayed, done };
+}
+
 // ── Message Bubble ────────────────────────────────────────────────
-const MessageBubble = ({ msg }) => {
+const MessageBubble = ({ msg, onAction, isLatest }) => {
   const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(msg.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
+  const isAssistant = msg.role === 'assistant';
+  const shouldStream = isAssistant && isLatest && !msg._streamed;
+  const { displayed, done } = useStreamedText(shouldStream ? msg.content : null, 6);
+  const content = shouldStream ? (done ? msg.content : displayed) : msg.content;
+
+  useEffect(() => { if (done && shouldStream) msg._streamed = true; }, [done]);
+
+  const handleCopy = () => { const { cleanText } = parseActionCards(msg.content); navigator.clipboard.writeText(cleanText); setCopied(true); setTimeout(() => setCopied(false), 1500); };
 
   return (
     <div className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble--user' : 'chat-bubble--genie'}`}>
-      {msg.role === 'assistant' && <div className="bubble-avatar" style={{ background: 'linear-gradient(135deg, #0ea5e9, #8b5cf6)', color: '#fff', fontSize: '0.7rem', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>G</div>}
+      {isAssistant && <div className="bubble-avatar"><span className="ba-letter">G</span></div>}
       <div className="bubble-body">
         <div className="bubble-text">
-          <MessageContent content={msg.content} />
+          <MessageContent content={content} onAction={onAction} />
+          {shouldStream && !done && <span className="stream-cursor">|</span>}
         </div>
         <div className="bubble-meta">
-          <span className="bubble-time">
-            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          {msg.role === 'assistant' && msg.latency_ms && (
-            <span className="bubble-latency">{(msg.latency_ms / 1000).toFixed(1)}s</span>
-          )}
-          {msg.role === 'assistant' && (
-            <button className="bubble-copy" onClick={handleCopy} title="Copy">
-              {copied ? '✓' : <Copy size={12} />}
-            </button>
-          )}
+          <span className="bubble-time">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          {isAssistant && msg.latency_ms && <span className="bubble-latency">{(msg.latency_ms / 1000).toFixed(1)}s</span>}
+          {isAssistant && <MessageFeedback msgIndex={0} />}
+          {isAssistant && <button className="bubble-copy" onClick={handleCopy} title="Copy">{copied ? '✓' : <Copy size={12} />}</button>}
         </div>
       </div>
     </div>
   );
 };
 
-// ── Contextual Suggested Pills (FIX 4) ───────────────────────────
-function generateContextualPills(lastQuestion, profile) {
-  if (!lastQuestion) return [];
-
-  const q = lastQuestion.toLowerCase();
-
-  // Tax-related follow-ups
-  if (q.includes('tax')) {
-    return [
-      'Which regime saves me more tax?',
-      'How can I reduce my tax liability?',
-      'What is my post-tax return on an FD?',
-    ];
-  }
-
-  // Investment comparison follow-ups
-  if (q.includes('invest') || q.includes('elss') || q.includes('fd') || q.includes('ppf')) {
-    return [
-      'Show me a 10-year projection for ELSS',
-      'What is the lock-in period for ELSS?',
-      'How does ELSS compare to PPF after tax?',
-    ];
-  }
-
-  // Goal planning follow-ups
-  if (q.includes('retire') || q.includes('goal') || q.includes('corpus') || q.includes('sip')) {
-    return [
-      'How much SIP do I need for retirement?',
-      'Am I on track for my goals?',
-      'What is the 25x rule for retirement?',
-    ];
-  }
-
-  // General financial follow-ups
-  return [
-    'What investment suits my risk profile?',
-    'How much emergency fund should I maintain?',
-  ];
+// ── Proactive Nudge Banner ────────────────────────────────────────
+function ProactiveNudge({ profile, onAsk }) {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed || !profile) return null;
+  let nudge = null;
+  if (profile.risk_appetite === 'High' && profile.age > 50) nudge = { icon: '⚠️', text: 'Your risk level is high but you\'re over 50. Ask me about safer allocations.', question: 'Should I reduce my equity exposure at my age?' };
+  else if (profile.monthly_savings && profile.monthly_savings < (profile.monthly_income || 0) * 0.2) nudge = { icon: '💡', text: 'You\'re saving less than 20% of your income. Let me optimize your budget.', question: 'How can I increase my monthly savings rate?' };
+  if (!nudge) return null;
+  return (
+    <div className="proactive-nudge">
+      <span className="nudge-icon">{nudge.icon}</span>
+      <span className="nudge-text">{nudge.text}</span>
+      <button className="nudge-btn" onClick={() => { onAsk(nudge.question); setDismissed(true); }}>Ask Genie</button>
+      <button className="nudge-dismiss" onClick={() => setDismissed(true)}>✕</button>
+    </div>
+  );
 }
 
-function SuggestedPills({ baseQuestion, profile, onSelect }) {
-  const pills = generateContextualPills(baseQuestion, profile);
-  if (!pills.length) return null;
-
+// ── Portfolio Snapshot Widget ─────────────────────────────────────
+function PortfolioSnapshot({ profile }) {
+  if (!profile) return null;
+  const annualIncome = profile.annualIncome || (profile.monthly_income || profile.income || 0) * 12;
+  const riskLabel = profile.risk_appetite || profile.riskCategory || 'N/A';
+  const items = [
+    { label: 'Income', value: `₹${(annualIncome / 100000).toFixed(1)}L`, color: '#38bdf8' },
+    { label: 'Risk', value: riskLabel, color: riskLabel === 'High' ? '#ef4444' : riskLabel === 'Medium' ? '#f59e0b' : '#22c55e' },
+    { label: 'Regime', value: (profile.taxRegime || 'new').toUpperCase(), color: '#a855f7' },
+  ];
   return (
-    <div className="quick-replies">
-      {pills.map((pill, i) => (
-        <button
-          key={i}
-          className="quick-chip follow-up"
-          onClick={() => onSelect(pill)}
-        >
-          <Sparkles size={12} /> {pill}
-        </button>
+    <div className="portfolio-snapshot">
+      {items.map((item, i) => (
+        <div key={i} className="snapshot-item">
+          <div className="snapshot-label">{item.label}</div>
+          <div className="snapshot-value" style={{ color: item.color }}>{item.value}</div>
+        </div>
       ))}
     </div>
   );
 }
+
+// ── Contextual Follow-Up Pills ────────────────────────────────────
+function generateContextualPills(lastQ) {
+  if (!lastQ) return [];
+  const q = lastQ.toLowerCase();
+  if (q.includes('rebalance') || q.includes('allocation')) return ['Show ideal asset allocation', 'What if I go 80/20 equity?', 'Compare to balanced fund'];
+  if (q.includes('tax')) return ['Which regime saves more?', 'Section 80C breakdown', 'Post-tax FD return'];
+  if (q.includes('sip') || q.includes('invest') || q.includes('step')) return ['10-year SIP projection', 'Ideal yearly step-up %', 'What if I double my SIP?'];
+  if (q.includes('retire') || q.includes('goal')) return ['Am I on track?', 'Retire 5 years early?', 'SIP for ₹1 crore'];
+  if (q.includes('crash') || q.includes('market')) return ['40% crash impact?', 'Invest during crashes?', 'Portfolio risk score'];
+  return ['Rebalance my portfolio', 'Tax savings this year'];
+}
+
+// ── FAB Button ────────────────────────────────────────────────────
+const GenieFAB = ({ onClick, hasNudge }) => (
+  <button className="genie-fab" onClick={onClick} title="Ask Genie">
+    <img src={chatGenie} alt="Genie AI" className="genie-fab-logo" />
+    <span className="genie-fab-ring"></span>
+    {hasNudge && <span className="fab-nudge-dot" />}
+  </button>
+);
 
 // ── Main Component ────────────────────────────────────────────────
 const GenieChat = ({ profile, recommendations }) => {
@@ -185,6 +282,7 @@ const GenieChat = ({ profile, recommendations }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [rateLimit, setRateLimit] = useState({ remaining: 30, total: 30 });
+  const [isListening, setIsListening] = useState(false);
   const [sessionId, setSessionId] = useState(() => {
     const stored = sessionStorage.getItem('genie_session_id');
     if (stored) return stored;
@@ -192,212 +290,153 @@ const GenieChat = ({ profile, recommendations }) => {
     sessionStorage.setItem('genie_session_id', newId);
     return newId;
   });
-
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
+  const recognitionRef = useRef(null);
 
-  // Track last user message for contextual pills
   const lastUserMessage = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+  const lastAssistantMsg = messages.filter(m => m.role === 'assistant').slice(-1)[0];
 
-  // Load history on open
+  useEffect(() => { if (isOpen && sessionId && messages.length === 0) loadHistory(); }, [isOpen]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isLoading]);
+
+  // Voice recognition setup
   useEffect(() => {
-    if (isOpen && sessionId && messages.length === 0) {
-      loadHistory();
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-IN';
+      recognitionRef.current.onresult = (e) => { const t = e.results[0][0].transcript; setInput(prev => prev + t); setIsListening(false); };
+      recognitionRef.current.onerror = () => setIsListening(false);
+      recognitionRef.current.onend = () => setIsListening(false);
     }
-  }, [isOpen]);
+  }, []);
 
-  // Auto-scroll to latest message
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+  const toggleVoice = () => {
+    if (!recognitionRef.current) return;
+    if (isListening) { recognitionRef.current.stop(); setIsListening(false); }
+    else { recognitionRef.current.start(); setIsListening(true); }
+  };
 
   const loadHistory = async () => {
     try {
       const data = await api.getChatHistory(sessionId);
       if (data.conversations?.[0]?.messages) {
-        setMessages(data.conversations[0].messages.map(m => ({
-          role: m.role === 'model' ? 'assistant' : 'user',
-          content: m.content,
-          timestamp: m.timestamp || new Date().toISOString(),
-          latency_ms: m.metadata?.latency_ms,
-        })));
+        setMessages(data.conversations[0].messages.map(m => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.content, timestamp: m.timestamp || new Date().toISOString(), latency_ms: m.metadata?.latency_ms, _streamed: true })));
       }
-    } catch (_) {
-      // New session — no history
-    }
+    } catch (_) {}
   };
+
+  const handleAction = useCallback((action) => console.log('[GenieChat] Action:', action), []);
 
   const sendMessage = useCallback(async (text) => {
     const messageText = (text || input).trim();
     if (!messageText || isLoading) return;
-
-    setInput('');
-    setError(null);
-
-    const userMsg = { role: 'user', content: messageText, timestamp: new Date().toISOString() };
-    setMessages(prev => [...prev, userMsg]);
+    setInput(''); setError(null);
+    setMessages(prev => [...prev, { role: 'user', content: messageText, timestamp: new Date().toISOString() }]);
     setIsLoading(true);
-
     try {
       const data = await api.sendChatMessage(messageText, sessionId);
-
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: data.response,
-        timestamp: new Date().toISOString(),
-        latency_ms: data.latency_ms,
-      }]);
-
-      setRateLimit({
-        remaining: data.rate_limit_remaining,
-        total: 30,
-      });
-    } catch (err) {
-      const errorMsg = err.message || 'Genie is temporarily unavailable. Please try again.';
-      setError(errorMsg);
-    } finally {
-      setIsLoading(false);
-      inputRef.current?.focus();
-    }
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response, timestamp: new Date().toISOString(), latency_ms: data.latency_ms, _streamed: false }]);
+      setRateLimit({ remaining: data.rate_limit_remaining, total: 30 });
+    } catch (err) { setError(err.message || 'Genie is temporarily unavailable.'); }
+    finally { setIsLoading(false); inputRef.current?.focus(); }
   }, [input, isLoading, sessionId]);
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
+  const handleKeyDown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
 
   const clearChat = async () => {
-    try {
-      await api.clearChatSession(sessionId);
-    } catch (_) {}
-    setMessages([]);
-    setError(null);
-    setRateLimit({ remaining: 30, total: 30 });
-    const newId = crypto.randomUUID();
-    sessionStorage.setItem('genie_session_id', newId);
-    setSessionId(newId);
+    try { await api.clearChatSession(sessionId); } catch (_) {}
+    setMessages([]); setError(null); setRateLimit({ remaining: 30, total: 30 });
+    const newId = crypto.randomUUID(); sessionStorage.setItem('genie_session_id', newId); setSessionId(newId);
   };
 
   const suggestedQuestions = getSuggestedQuestions(profile);
-
-  // Get last assistant message to check for truncation
-  const lastAssistantMsg = messages.filter(m => m.role === 'assistant').slice(-1)[0];
-  const lastResponseTruncated = lastAssistantMsg?.content?.includes('*Response was truncated');
+  const pills = generateContextualPills(lastUserMessage);
 
   return (
     <>
-      {!isOpen && <GenieFAB onClick={() => setIsOpen(true)} />}
-
+      {!isOpen && <GenieFAB onClick={() => setIsOpen(true)} hasNudge={!!profile} />}
       {isOpen && (
         <div className="genie-panel">
-          {/* ── Header ──────────────────────────────────── */}
+          {/* Header */}
           <div className="genie-panel-header">
             <div className="genie-header-left">
-              <span className="genie-avatar" style={{ background: 'linear-gradient(135deg, #0ea5e9, #8b5cf6)', color: '#fff', fontSize: '0.75rem', fontWeight: 900, width: 28, height: 28, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>G</span>
+              <div className="genie-avatar-wrap"><span className="ba-letter">G</span></div>
               <div>
-                <div className="genie-header-title">Genie</div>
-                <div className="genie-header-sub">
-                  <span className="online-dot"></span> Your Financial Advisor
-                </div>
+                <div className="genie-header-title">Genie <span className="genie-agentic-badge">AGENTIC AI</span></div>
+                <div className="genie-header-sub"><span className="online-dot"></span> Financial Co-Pilot · Powered by Gemini</div>
               </div>
             </div>
             <div className="genie-header-actions">
-              {/* FIX 5: Rate limit warning state */}
-              <span className={`rate-limit-badge ${
-                rateLimit.remaining <= 5 ? 'rate-limit-warning' : ''
-              }`}>
-                {rateLimit.remaining <= 0
-                  ? 'Limit reached — resets in 1 hour'
-                  : `${rateLimit.remaining}/${rateLimit.total}`
-                }
-              </span>
+              <span className={`rate-limit-badge ${rateLimit.remaining <= 5 ? 'rate-limit-warning' : ''}`}>{rateLimit.remaining <= 0 ? 'Limit reached' : `${rateLimit.remaining}/${rateLimit.total}`}</span>
               <button onClick={clearChat} title="Clear chat"><Trash2 size={16} /></button>
               <button onClick={() => setIsOpen(false)} title="Close"><X size={18} /></button>
             </div>
           </div>
 
-          {/* ── Messages ────────────────────────────────── */}
+          {/* Messages */}
           <div className="genie-messages">
             {messages.length === 0 && !isLoading && (
               <div className="genie-welcome">
-                <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg, #0ea5e9, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.3rem', fontWeight: 900, boxShadow: '0 0 20px rgba(14,165,233,0.3)' }}>G</div>
-                <p>Hi{profile?.name ? `, ${profile.name.split(' ')[0]}` : ''}! I'm <strong>Genie</strong>, your personal financial advisor.</p>
-                <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
-                  Ask me anything about your investments, tax planning, or financial goals. I have your complete profile loaded.
-                </p>
+                <div className="genie-welcome-glow" />
+                <div className="genie-welcome-avatar"><div className="welcome-avatar-ring"><span className="ba-letter ba-large">G</span></div></div>
+                <p className="welcome-headline">Hi{profile?.name ? `, ${profile.name.split(' ')[0]}` : ''}! I'm <strong>Genie</strong></p>
+                <p className="welcome-sub">Your agentic financial co-pilot. I generate <strong style={{ color: '#38bdf8' }}>interactive action plans</strong> with one-click execution.</p>
+                <PortfolioSnapshot profile={profile} />
+                <div className="welcome-capability-cards">
+                  <div className="capability-card"><BarChart3 size={15} style={{color:'#38bdf8'}}/><span>Rebalancing</span></div>
+                  <div className="capability-card"><Shield size={15} style={{color:'#22c55e'}}/><span>Tax Saving</span></div>
+                  <div className="capability-card"><TrendingUp size={15} style={{color:'#a855f7'}}/><span>SIP Step-Up</span></div>
+                  <div className="capability-card"><Target size={15} style={{color:'#f59e0b'}}/><span>Goal Tracking</span></div>
+                </div>
                 {suggestedQuestions.length > 0 && (
                   <div className="welcome-suggestions">
-                    {suggestedQuestions.map((q, i) => (
-                      <button key={i} className="suggestion-pill" onClick={() => sendMessage(q)}>
-                        <Sparkles size={12} /> {q}
-                      </button>
-                    ))}
+                    {suggestedQuestions.map((q, i) => <button key={i} className="suggestion-pill" onClick={() => sendMessage(q)}><Sparkles size={12} /> {q}</button>)}
                   </div>
                 )}
               </div>
             )}
 
-            {messages.map((msg, i) => (
-              <MessageBubble key={i} msg={msg} />
-            ))}
+            <ProactiveNudge profile={profile} onAsk={sendMessage} />
+
+            {messages.map((msg, i) => <MessageBubble key={i} msg={msg} onAction={handleAction} isLatest={i === messages.length - 1} />)}
 
             {isLoading && (
               <div className="chat-bubble chat-bubble--genie">
-                <div className="bubble-avatar" style={{ background: 'linear-gradient(135deg, #0ea5e9, #8b5cf6)', color: '#fff', fontSize: '0.7rem', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>G</div>
+                <div className="bubble-avatar"><span className="ba-letter">G</span></div>
                 <div className="typing-indicator">
-                  <span></span><span></span><span></span>
+                  <div className="typing-label">Genie is analyzing your finances</div>
+                  <div className="typing-dots"><span></span><span></span><span></span></div>
                 </div>
               </div>
             )}
-
-            {error && (
-              <div className="chat-error-banner">{error}</div>
-            )}
-
+            {error && <div className="chat-error-banner">{error}</div>}
             <div ref={chatEndRef} />
           </div>
 
-          {/* ── Contextual Follow-Up Pills (FIX 4) ──────── */}
-          {messages.length > 0
-            && !isLoading
-            && !lastResponseTruncated
-            && lastAssistantMsg?.content?.length > 50
-            && (
-              <SuggestedPills
-                baseQuestion={lastUserMessage}
-                profile={profile}
-                onSelect={sendMessage}
-              />
-            )}
+          {/* Follow-up pills */}
+          {messages.length > 0 && !isLoading && lastAssistantMsg?.content?.length > 50 && (
+            <div className="quick-replies">
+              {pills.map((p, i) => <button key={i} className="quick-chip follow-up" onClick={() => sendMessage(p)}><Sparkles size={12} /> {p}</button>)}
+            </div>
+          )}
 
-          {/* ── Input Bar ──────────────────────────────── */}
+          {/* Input Bar */}
           <div className="genie-input-bar">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask Genie about your investments, tax, or goals..."
-              className="genie-input"
-              maxLength={1000}
-              disabled={isLoading || rateLimit.remaining === 0}
-            />
-            <button
-              className="genie-send-btn"
-              onClick={() => sendMessage()}
-              disabled={isLoading || !input.trim() || rateLimit.remaining === 0}
-            >
+            {recognitionRef.current && (
+              <button className={`voice-btn ${isListening ? 'voice-active' : ''}`} onClick={toggleVoice} title="Voice input">
+                {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+              </button>
+            )}
+            <input ref={inputRef} type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder={isListening ? 'Listening...' : 'Ask Genie for a financial action plan...'} className="genie-input" maxLength={1000} disabled={isLoading || rateLimit.remaining === 0} />
+            <button className="genie-send-btn" onClick={() => sendMessage()} disabled={isLoading || !input.trim() || rateLimit.remaining === 0}>
               {isLoading ? <RefreshCw size={18} className="spin-icon" /> : <Send size={18} />}
             </button>
           </div>
-
-          {/* ── Disclaimer ─────────────────────────────── */}
-          <div className="genie-disclaimer">
-            For informational purposes only. Not registered investment advice.
-          </div>
+          <div className="genie-disclaimer">Agentic AI Co-Pilot · Not SEBI-registered advice · Powered by Gemini + Groq</div>
         </div>
       )}
     </>

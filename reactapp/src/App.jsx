@@ -322,8 +322,23 @@ const DashboardShell = ({ userProfile, onProfileUpdate }) => {
     });
   }, [backendRecs, localRecommendations]);
 
+
   const handleLearnMore = (investment) => {
-    setDeepDiveInvestment(investment);
+    // Normalize recommendation engine fields → DeepDiveModal expected schema
+    const normalized = {
+      ...investment,
+      expected_return_min: investment.expected_return_min ?? (investment.rate ? investment.rate * 0.85 : 0),
+      expected_return_max: investment.expected_return_max ?? (investment.rate || 0),
+      category: investment.category || investment.cat || 'Other',
+      risk_level: investment.risk_level || investment.riskLabel || 'Medium',
+      lock_in_years: investment.lock_in_years ?? investment.lockIn ?? 0,
+      tax_benefit: investment.tax_benefit ?? (investment.taxType === 'eee' || investment.taxType === 'elss' || investment.taxType === 'nps'),
+      tax_section: investment.tax_section || (investment.taxType === 'eee' ? '80C' : investment.taxType === 'elss' ? '80C' : investment.taxType === 'nps' ? '80CCD(1B)' : null),
+      tax_free_interest: investment.tax_free_interest ?? (investment.taxType === 'eee'),
+      liquidity: investment.liquidity || (investment.lockIn > 3 ? 'Low' : investment.lockIn > 0 ? 'Medium' : 'High'),
+      description: investment.description || investment.desc || '',
+    };
+    setDeepDiveInvestment(normalized);
   };
 
   const handleRebalanceSave = (updatedRecs) => {

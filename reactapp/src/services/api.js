@@ -46,7 +46,7 @@ export function clearAuthToken() {
   setUserInfo(null);
 }
 
-async function request(method, path, data = null, options = {}) {
+async function request(method, path, data = null, options = {}, retries = 2) {
   const url = `${API_BASE}${path}`;
   const headers = { 'Content-Type': 'application/json' };
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
@@ -54,13 +54,23 @@ async function request(method, path, data = null, options = {}) {
   const config = { method, headers, ...options };
   if (data) config.body = JSON.stringify(data);
 
-  const res = await fetch(url, config);
-  const json = await res.json();
+  try {
+    const res = await fetch(url, config);
+    const json = await res.json();
 
-  if (!res.ok) {
-    throw new Error(json.error || `Request failed with status ${res.status}`);
+    if (!res.ok) {
+      throw new Error(json.error || `Request failed with status ${res.status}`);
+    }
+    return json;
+  } catch (err) {
+    // Retry on network errors (like 'Failed to fetch' which happens if the dev server restarts)
+    if (retries > 0 && err.message.includes('Failed to fetch')) {
+      console.warn(`[API] Network error: ${err.message}. Retrying... (${retries} retries left)`);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      return request(method, path, data, options, retries - 1);
+    }
+    throw err;
   }
-  return json;
 }
 
 // ─── AUTH ─────────────────────────────────────────────────

@@ -340,7 +340,7 @@ input[type="range"].tax-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 6px;
+  height: 4px;
   border-radius: 100px;
   outline: none;
   cursor: pointer;
@@ -358,14 +358,15 @@ input[type="range"].tax-slider {
 input[type="range"].tax-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 20px;
-  height: 20px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: #fff;
-  border: 3px solid #0ea5e9;
+  border: 2px solid #0ea5e9;
   cursor: pointer;
   box-shadow: 0 0 12px rgba(14, 165, 233, 0.5), 0 2px 6px rgba(0,0,0,0.3);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  margin-top: -4px;
 }
 
 input[type="range"].tax-slider::-webkit-slider-thumb:hover {
@@ -374,17 +375,22 @@ input[type="range"].tax-slider::-webkit-slider-thumb:hover {
 }
 
 input[type="range"].tax-slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: #fff;
-  border: 3px solid #0ea5e9;
+  border: 2px solid #0ea5e9;
   cursor: pointer;
   box-shadow: 0 0 12px rgba(14, 165, 233, 0.5), 0 2px 6px rgba(0,0,0,0.3);
+  transition: transform 0.2s ease;
+}
+
+input[type="range"].tax-slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
 }
 
 input[type="range"].tax-slider::-moz-range-track {
-  height: 6px;
+  height: 4px;
   border-radius: 100px;
   background: rgba(255, 255, 255, 0.08);
 }

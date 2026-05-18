@@ -368,26 +368,51 @@ input[type=range] {
 /* Dashboard-specific slider track & thumb (scoped to .dash-range) */
 .dash-range::-webkit-slider-runnable-track {
   width: 100%;
-  height: 6px;
+  height: 4px;
   background: linear-gradient(to right, var(--accent-teal) var(--value, 0%), rgba(255, 255, 255, 0.06) var(--value, 0%));
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 .dash-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  height: 16px;
-  width: 16px;
+  height: 12px;
+  width: 12px;
   border-radius: 50%;
   background: #fff;
-  border: 2.5px solid var(--accent-teal);
+  border: 2px solid var(--accent-teal);
   cursor: pointer;
   box-shadow: 0 0 10px rgba(56, 189, 248, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
   transition: transform 0.2s var(--ease-premium), box-shadow 0.2s ease;
-  margin-top: -5px;
+  margin-top: -4px;
 }
 
 .dash-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.7), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Firefox compatibility styles */
+.dash-range::-moz-range-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+}
+
+.dash-range::-moz-range-thumb {
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--accent-teal);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s var(--ease-premium), box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.dash-range::-moz-range-thumb:hover {
   transform: scale(1.2);
   box-shadow: 0 0 16px rgba(56, 189, 248, 0.7), 0 2px 8px rgba(0, 0, 0, 0.4);
 }
