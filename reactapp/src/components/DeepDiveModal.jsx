@@ -203,21 +203,21 @@ const DeepDiveModal = ({ isOpen, onClose, investment, allRecommendations, horizo
         .calc-field input[type="range"]::-webkit-slider-thumb {
           -webkit-appearance: none !important;
           appearance: none !important;
-          height: 12px !important;
-          width: 12px !important;
+          height: 16px !important;
+          width: 16px !important;
           border-radius: 50% !important;
-          background: #38bdf8 !important;
-          border: 2.5px solid #020617 !important;
+          background: #ffffff !important;
+          border: 3px solid #38bdf8 !important;
           cursor: pointer !important;
-          box-shadow: 0 0 8px rgba(56, 189, 248, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+          box-shadow: 0 0 10px rgba(56, 189, 248, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4) !important;
           transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease !important;
-          margin-top: -4px !important;
+          margin-top: -6px !important;
           box-sizing: border-box !important;
         }
 
         .calc-field input[type="range"]::-webkit-slider-thumb:hover {
-          transform: scale(1.2) !important;
-          box-shadow: 0 0 12px rgba(56, 189, 248, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+          transform: scale(1.15) !important;
+          box-shadow: 0 0 14px rgba(56, 189, 248, 0.7), 0 2px 8px rgba(0, 0, 0, 0.5) !important;
         }
 
         .calc-field input[type="range"]::-moz-range-track {
@@ -229,20 +229,20 @@ const DeepDiveModal = ({ isOpen, onClose, investment, allRecommendations, horizo
         }
 
         .calc-field input[type="range"]::-moz-range-thumb {
-          height: 12px !important;
-          width: 12px !important;
+          height: 16px !important;
+          width: 16px !important;
           border-radius: 50% !important;
-          background: #38bdf8 !important;
-          border: 2.5px solid #020617 !important;
+          background: #ffffff !important;
+          border: 3px solid #38bdf8 !important;
           cursor: pointer !important;
-          box-shadow: 0 0 8px rgba(56, 189, 248, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+          box-shadow: 0 0 10px rgba(56, 189, 248, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4) !important;
           transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease !important;
           box-sizing: border-box !important;
         }
 
         .calc-field input[type="range"]::-moz-range-thumb:hover {
-          transform: scale(1.2) !important;
-          box-shadow: 0 0 12px rgba(56, 189, 248, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+          transform: scale(1.15) !important;
+          box-shadow: 0 0 14px rgba(56, 189, 248, 0.7), 0 2px 8px rgba(0, 0, 0, 0.5) !important;
         }
       `}</style>
       <div className="ddm-content" onClick={e => e.stopPropagation()}>

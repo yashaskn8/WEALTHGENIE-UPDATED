@@ -549,8 +549,8 @@
 
 .rebal-range::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   box-sizing: border-box;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e2e8f0 60%, #94a3b8 100%);
@@ -559,7 +559,7 @@
     0 2px 6px rgba(0,0,0,0.4),
     0 0 14px color-mix(in srgb, var(--thumb-color) 55%, transparent);
   cursor: grab;
-  margin-top: -7px;
+  margin-top: -5px;
   transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s;
 }
 
@@ -572,7 +572,7 @@
 
 .rebal-range:active::-webkit-slider-thumb {
   cursor: grabbing;
-  transform: scale(1.25);
+  transform: scale(1.2);
   box-shadow:
     0 4px 12px rgba(0,0,0,0.6),
     0 0 32px var(--thumb-color);

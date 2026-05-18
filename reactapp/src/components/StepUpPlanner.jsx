@@ -83,25 +83,25 @@ const StepUpPlanner = ({ profile }) => {
         .sup-slider::-webkit-slider-thumb {
           -webkit-appearance: none !important;
           appearance: none !important;
-          width: 12px !important;
-          height: 12px !important;
-          margin-top: -4px !important;
+          width: 16px !important;
+          height: 16px !important;
+          margin-top: -6px !important;
           box-sizing: border-box !important;
           border-radius: 50% !important;
           background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e2e8f0 60%, #94a3b8 100%) !important;
-          border: 2px solid #0ea5e9 !important;
+          border: 3px solid #0ea5e9 !important;
           cursor: pointer !important;
           box-shadow: 0 0 10px rgba(14, 165, 233, 0.5), 0 1px 4px rgba(0,0,0,0.4) !important;
           transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease !important;
         }
 
         .sup-slider::-webkit-slider-thumb:hover {
-          transform: scale(1.25) !important;
+          transform: scale(1.15) !important;
           box-shadow: 0 0 18px rgba(14, 165, 233, 0.7), 0 0 5px rgba(14, 165, 233, 0.4), 0 2px 6px rgba(0,0,0,0.5) !important;
         }
 
         .sup-slider::-webkit-slider-thumb:active {
-          transform: scale(1.1) !important;
+          transform: scale(1.2) !important;
         }
 
         .sup-slider-purple::-webkit-slider-thumb {
@@ -125,12 +125,12 @@ const StepUpPlanner = ({ profile }) => {
         }
 
         .sup-slider::-moz-range-thumb {
-          width: 12px !important;
-          height: 12px !important;
+          width: 16px !important;
+          height: 16px !important;
           box-sizing: border-box !important;
           border-radius: 50% !important;
           background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e2e8f0 60%, #94a3b8 100%) !important;
-          border: 2px solid #0ea5e9 !important;
+          border: 3px solid #0ea5e9 !important;
           cursor: pointer !important;
           box-shadow: 0 0 10px rgba(14, 165, 233, 0.5), 0 1px 4px rgba(0,0,0,0.4) !important;
           transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease !important;
@@ -143,7 +143,7 @@ const StepUpPlanner = ({ profile }) => {
 
         .sup-slider::-moz-range-thumb:hover,
         .sup-slider-purple::-moz-range-thumb:hover {
-          transform: scale(1.25) !important;
+          transform: scale(1.15) !important;
         }
       `}</style>
       {/* Floating Ambient Orbs */}
