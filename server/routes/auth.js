@@ -2,48 +2,92 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { validate, registerSchema, loginSchema } from '../validation/schemas.js';
+import { asyncHandler, createError } from '../middleware/errorHandler.js';
 
 const router = Router();
 
-// POST /api/auth/register
-router.post('/register', async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Name, email, and password are required.' });
-    }
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters.' });
-    }
-    const existing = await User.findOne({ email: email.toLowerCase() });
-    if (existing) {
-      return res.status(409).json({ error: 'Email already registered.' });
-    }
-    const passwordHash = await bcrypt.hash(password, 12);
-    const user = await User.create({ name, email: email.toLowerCase(), passwordHash });
-    const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-    res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, createdAt: user.createdAt || new Date().toISOString() } });
-  } catch (err) {
-    res.status(500).json({ error: 'Registration failed.' });
-  }
-});
+/**
+ * POST /api/auth/register
+ * Creates a new user account and returns a JWT.
+ */
+router.post('/register', validate(registerSchema), asyncHandler(async (req, res) => {
+  const { name, email, password } = req.body;
 
-// POST /api/auth/login
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required.' });
-    }
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(401).json({ error: 'Invalid credentials.' });
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials.' });
-    const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, createdAt: user.createdAt || new Date().toISOString() } });
-  } catch (err) {
-    res.status(500).json({ error: 'Login failed.' });
+  const existing = await User.findOne({ email }).lean();
+  if (existing) {
+    throw createError(409, `Registration attempt with existing email: ${email}`, 'Email already registered.');
   }
-});
+
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  // Wrap create in try/catch to handle the race condition where two concurrent
+  // requests both pass the findOne check but only one can insert (unique index).
+  let user;
+  try {
+    user = await User.create({ name: name.trim(), email, passwordHash });
+  } catch (err) {
+    if (err.code === 11000) {
+      // MongoDB duplicate key error — concurrent registration with same email
+      throw createError(409, `Concurrent registration race for: ${email}`, 'Email already registered.');
+    }
+    throw err; // Re-throw non-duplicate errors
+  }
+
+  const token = jwt.sign(
+    { userId: user._id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+  );
+
+  res.status(201).json({
+    token,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      createdAt: user.createdAt,
+    },
+  });
+}));
+
+/**
+ * POST /api/auth/login
+ * Authenticates a user and returns a JWT.
+ */
+router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  // Use the same error message for both "user not found" and "wrong password"
+  // to prevent email enumeration attacks
+  const INVALID_CREDS = 'Invalid credentials.';
+
+  // Must explicitly select passwordHash (hidden by default via select:false)
+  const user = await User.findOne({ email }).select('+passwordHash');
+  if (!user) {
+    throw createError(401, `Login attempt for non-existent email: ${email}`, INVALID_CREDS);
+  }
+
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) {
+    throw createError(401, `Invalid password for email: ${email}`, INVALID_CREDS);
+  }
+
+  const token = jwt.sign(
+    { userId: user._id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+  );
+
+  res.json({
+    token,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      createdAt: user.createdAt,
+    },
+  });
+}));
 
 export default router;

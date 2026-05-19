@@ -2,27 +2,13 @@
  * WealthGenie Post-Tax Return Calculator
  * Applies Indian taxation rules per instrument type for FY2025-26.
  * All rates sourced from Finance Act 2023 and Budget 2024 amendments.
+ *
+ * IMPORTANT: This module uses getTaxSlab() from taxEngine.js as the
+ * single source of truth for marginal rate computation. There is NO
+ * duplicate slab logic in this file.
  */
 
-import { computeTax } from './taxEngine.js';
-
-// ── Helper: extract marginal rate from taxable income ─────────────
-function getMarginalRate(taxableIncome, regime) {
-  if (regime === 'new') {
-    if (taxableIncome <= 400000)  return 0;
-    if (taxableIncome <= 800000)  return 0.05;
-    if (taxableIncome <= 1200000) return 0.10;
-    if (taxableIncome <= 1600000) return 0.15;
-    if (taxableIncome <= 2000000) return 0.20;
-    if (taxableIncome <= 2400000) return 0.25;
-    return 0.30;
-  } else {
-    if (taxableIncome <= 250000)  return 0;
-    if (taxableIncome <= 500000)  return 0.05;
-    if (taxableIncome <= 1000000) return 0.20;
-    return 0.30;
-  }
-}
+import { computeTax, getTaxSlab } from './taxEngine.js';
 
 function round4(n) { return parseFloat(n.toFixed(4)); }
 
@@ -32,6 +18,21 @@ function round4(n) { return parseFloat(n.toFixed(4)); }
  * This wraps every return path in calculatePostTaxReturn.
  */
 export function validatePostTaxResult(result, nominalRate, instrumentType) {
+  // Guard: NaN or non-finite inputs → return nominal as safe fallback
+  if (!Number.isFinite(result.postTaxReturn)) {
+    console.error(
+      `[PostTax CRITICAL] ${instrumentType}: postTaxReturn is NaN/Infinity. `
+      + `Returning nominal ${nominalRate} as safe fallback.`
+    );
+    return {
+      ...result,
+      postTaxReturn: Number.isFinite(nominalRate) ? nominalRate : 0,
+      taxRate: 0,
+      validationFailed: true,
+      validationError: 'non_finite_post_tax',
+    };
+  }
+
   // ABSOLUTE RULE: post-tax return cannot exceed nominal return
   if (result.postTaxReturn > nominalRate + 0.0001) {
     console.error(
@@ -79,7 +80,8 @@ export function validatePostTaxResult(result, nominalRate, instrumentType) {
  * Computes the effective post-tax annual return for a given instrument.
  *
  * @param {string} instrumentType  - 'FD','ELSS','Equity_MF','ETF','Debt_MF',
- *                                   'RBI_Bond','G-Sec','PPF','NPS','Gold'
+ *                                   'RBI_Bond','G-Sec','PPF','NPS','Gold','SGB',
+ *                                   'Liquid_MF','Arbitrage_MF'
  * @param {number} nominalRate     - Annual nominal return as decimal (e.g., 0.072)
  * @param {number} annualIncome    - User's gross annual income (for slab)
  * @param {number} holdingYears    - Intended holding period in years
@@ -90,9 +92,14 @@ export function validatePostTaxResult(result, nominalRate, instrumentType) {
 export function calculatePostTaxReturn(
   instrumentType, nominalRate, annualIncome, holdingYears = 3, regime = 'new'
 ) {
-  // Derive marginal slab rate for this user
-  const taxResult = computeTax(annualIncome, regime);
-  const marginalRate = getMarginalRate(taxResult.taxableIncome, regime);
+  // Input guards
+  if (!Number.isFinite(nominalRate) || nominalRate < 0) nominalRate = 0;
+  if (!Number.isFinite(annualIncome) || annualIncome < 0) annualIncome = 0;
+  if (!Number.isFinite(holdingYears) || holdingYears < 0) holdingYears = 1;
+
+  // Use getTaxSlab from taxEngine.js — the single source of truth
+  // getTaxSlab takes gross annualIncome and applies standard deduction internally
+  const marginalRate = getTaxSlab(annualIncome, regime);
 
   switch (instrumentType) {
 
@@ -210,24 +217,44 @@ export function calculatePostTaxReturn(
     }
 
     case 'G-Sec': {
-      // Interest (coupon) taxable at slab rate.
-      // Capital gains if sold before maturity:
-      //   STCG (< 1yr): slab rate
-      //   LTCG (> 1yr): 10% without indexation
-      const couponRate = 0.6;  // assumption: 60% of return is coupon income
-      const gainRate = 0.4;
-      const taxOnCoupon = couponRate * marginalRate;
-      const taxOnGains = holdingYears < 1 ? gainRate * marginalRate : gainRate * 0.10;
-      const blendedTaxRate = taxOnCoupon + taxOnGains;
-      const postTax = nominalRate * (1 - blendedTaxRate);
-      const result = {
-        postTaxReturn: round4(postTax),
-        effectiveYield: round4(postTax * 100),
-        taxType: 'Blended (coupon at slab, LTCG at 10%)',
-        taxRate: round4(blendedTaxRate),
-        notes: 'Coupon taxed at slab. Capital gains at 10% if held > 1 year.'
-      };
-      return validatePostTaxResult(result, nominalRate, 'G-Sec');
+      // G-Sec taxation depends on whether held to maturity:
+      //
+      // If HELD TO MATURITY (bought at par):
+      //   100% of return is coupon income → taxed at slab rate.
+      //   No capital gains component.
+      //
+      // If TRADED before maturity:
+      //   Coupon: taxed at slab rate
+      //   Capital gains: STCG (slab) if < 1yr, LTCG (10% w/o indexation) if > 1yr
+      //
+      // Default assumption: held to maturity (most retail investors on RBI Retail Direct).
+      // For short-term traders, the STCG rate applies on any price appreciation.
+      if (holdingYears < 1) {
+        // Short-term trader: all returns taxed at slab rate
+        const postTax = nominalRate * (1 - marginalRate);
+        const result = {
+          postTaxReturn: round4(postTax),
+          effectiveYield: round4(postTax * 100),
+          taxType: `STCG at Slab Rate (${(marginalRate*100).toFixed(0)}%)`,
+          taxRate: marginalRate,
+          notes: 'Short-term holding: all gains taxed at slab rate.'
+        };
+        return validatePostTaxResult(result, nominalRate, 'G-Sec');
+      } else {
+        // Held to maturity: coupon income taxed at slab rate.
+        // No capital gains for par-bought held-to-maturity G-Secs.
+        const postTax = nominalRate * (1 - marginalRate);
+        const result = {
+          postTaxReturn: round4(postTax),
+          effectiveYield: round4(postTax * 100),
+          taxType: `Coupon at Slab Rate (${(marginalRate*100).toFixed(0)}%)`,
+          taxRate: marginalRate,
+          notes: 'Held to maturity: coupon taxed at slab. '
+               + 'No capital gains on par-bought G-Secs. '
+               + 'If sold early, LTCG at 10% without indexation on price gains.',
+        };
+        return validatePostTaxResult(result, nominalRate, 'G-Sec');
+      }
     }
 
     case 'PPF': {
@@ -248,9 +275,9 @@ export function calculatePostTaxReturn(
     }
 
     case 'NPS': {
-      // NPS partial EET: 60% corpus tax-free, 40% annuitised
-      // Annuity income taxed at marginal slab in retirement
-      // Simplified blended tax drag applied to nominal return
+      // NPS partial EET: 60% corpus tax-free at age 60, 40% annuitised
+      // Annuity income taxed at marginal slab rate in retirement
+      // Simplified: blended tax drag = 40% × marginal rate applied to nominal
       const annuityTaxedFraction = 0.40;
       const blendedTaxDrag = annuityTaxedFraction * marginalRate;
       const postTax = nominalRate * (1 - blendedTaxDrag);
@@ -268,39 +295,58 @@ export function calculatePostTaxReturn(
     }
 
     case 'Gold': {
-      // Gold ETF: same as Equity ETF (LTCG 12.5% if held > 1yr).
-      // SGB: capital gains fully exempt if held to maturity (8 years).
-      // Default to Gold ETF taxation.
-      const ltcgRate = holdingYears >= 1 ? 0.125 : marginalRate;
-      const postTax = nominalRate * (1 - ltcgRate);
-      const result = {
-        postTaxReturn: round4(postTax),
-        effectiveYield: round4(postTax * 100),
-        taxType: holdingYears >= 1
-          ? 'LTCG (12.5%)' : 'STCG (slab rate)',
-        taxRate: ltcgRate,
-        notes: 'Gold ETF taxation. For Sovereign Gold Bonds held to maturity '
-             + '(8 years), capital gains are fully exempt.'
-      };
-      return validatePostTaxResult(result, nominalRate, 'Gold');
+      // Gold ETF: same as Equity ETF post Budget 2024.
+      // STCG (<1yr): 20% flat
+      // LTCG (≥1yr): 12.5%
+      if (holdingYears < 1) {
+        const stcgRate = 0.20;
+        const postTax = nominalRate * (1 - stcgRate);
+        const result = {
+          postTaxReturn: round4(postTax),
+          effectiveYield: round4(postTax * 100),
+          taxType: 'STCG (20% flat)',
+          taxRate: stcgRate,
+          notes: 'Gold ETF held < 1 year: STCG at 20%.'
+        };
+        return validatePostTaxResult(result, nominalRate, 'Gold');
+      } else {
+        const ltcgRate = 0.125;
+        const postTax = nominalRate * (1 - ltcgRate);
+        const result = {
+          postTaxReturn: round4(postTax),
+          effectiveYield: round4(postTax * 100),
+          taxType: 'LTCG (12.5%)',
+          taxRate: ltcgRate,
+          notes: 'Gold ETF taxation. For Sovereign Gold Bonds held to maturity '
+               + '(8 years), capital gains are fully exempt.'
+        };
+        return validatePostTaxResult(result, nominalRate, 'Gold');
+      }
     }
 
     case 'SGB': {
+      // Sovereign Gold Bond:
+      //   Interest: 2.5% p.a. on face value, taxable at slab rate
+      //   Capital gains at maturity (8 years): FULLY EXEMPT under Section 47(viic)
+      //   Capital gains before maturity: LTCG at 12.5%
       const interestComponent = 0.025;  // 2.5% statutory annual interest
-      const capitalComponent = nominalRate - interestComponent;
+      // Guard: if nominal rate < interest component, cap it
+      const safeInterest = Math.min(interestComponent, nominalRate);
 
       // Interest: taxable at marginal slab rate
-      const taxOnInterest = interestComponent * marginalRate;
+      const taxOnInterest = safeInterest * marginalRate;
       // Capital gains at maturity: fully exempt (Section 47(viic))
       const taxOnGains = 0;
 
       const totalTaxDrag = taxOnInterest + taxOnGains;
       const postTax = nominalRate - totalTaxDrag;
+      const effectiveTaxRate = nominalRate > 0 ? round4(totalTaxDrag / nominalRate) : 0;
+
       const result = {
         postTaxReturn: round4(postTax),
         effectiveYield: round4(postTax * 100),
         taxType: 'Interest taxable at slab; maturity gains exempt (47(viic))',
-        taxRate: round4(totalTaxDrag / nominalRate),
+        taxRate: effectiveTaxRate,
         notes: '2.5% annual interest taxable at slab rate. '
              + 'Capital appreciation fully exempt if held to maturity (8yr). '
              + 'LTCG at 12.5% applies on redemption before maturity.',
@@ -309,7 +355,16 @@ export function calculatePostTaxReturn(
     }
 
     default:
-      throw new Error(`Unknown instrument type: ${instrumentType}`);
+      // Unknown instrument: apply slab rate as conservative default
+      console.warn(`[PostTax] Unknown instrument type: ${instrumentType}. Applying slab rate.`);
+      const postTax = nominalRate * (1 - marginalRate);
+      return validatePostTaxResult({
+        postTaxReturn: round4(postTax),
+        effectiveYield: round4(postTax * 100),
+        taxType: `Slab Rate (${(marginalRate*100).toFixed(0)}% — default)`,
+        taxRate: marginalRate,
+        notes: `Unknown instrument type "${instrumentType}". Defaulting to slab taxation.`,
+      }, nominalRate, instrumentType);
   }
 }
 

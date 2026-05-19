@@ -5,6 +5,7 @@
 import axios from 'axios';
 import { getCache, setCache, redisClient } from '../config/redis.js';
 import { buildSystemPrompt } from './genieChatSystemPrompt.js';
+import { createError } from '../middleware/errorHandler.js';
 import ConversationHistory from '../models/ConversationHistory.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Recommendation from '../models/Recommendation.js';
@@ -115,7 +116,7 @@ async function callGroq(systemPrompt, recentHistory) {
 export async function processChat({ userId, user, message, sessionId }) {
   const rateCheck = await checkRateLimit(userId);
   if (!rateCheck.allowed) {
-    throw { status: 429, message: `Chat limit reached (${CHAT_RATE_LIMIT}/hour). Resets in ${Math.ceil(rateCheck.ttl / 60)} minutes.` };
+    throw createError(429, `Rate limit for user ${userId}`, `Chat limit reached (${CHAT_RATE_LIMIT}/hour). Resets in ${Math.ceil(rateCheck.ttl / 60)} minutes.`);
   }
 
   const profile = await FinancialProfile.findOne({ userId }).sort({ createdAt: -1 }).lean();
@@ -181,7 +182,7 @@ export async function processChat({ userId, user, message, sessionId }) {
     // Both providers failed
     conversation.messages.push({ role: 'user', content: message, metadata: { grounded_on_profile: true } });
     await conversation.save();
-    throw { status: 502, message: 'Genie is temporarily unavailable. Please try again in a moment.' };
+    throw createError(502, 'Both Gemini and Groq failed', 'Genie is temporarily unavailable. Please try again in a moment.');
   }
 
   const latencyMs = Date.now() - startTime;

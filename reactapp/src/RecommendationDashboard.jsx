@@ -34,6 +34,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
   const defaultHorizon = userProfile?.investment_horizon || 15;
   const [horizon, setHorizon] = useState(defaultHorizon);
   const [initialCapital, setInitialCapital] = useState(Number(userProfile?.existing_savings) || 0);
+  const [stepUpPct, setStepUpPct] = useState(10);
   const [inflationAdjusted, setInflationAdjusted] = useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   
@@ -110,6 +111,9 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
       allocationDataOuter: [], allocationDataInner: [], tableData: [], performanceData: [], currentMonthly: 0, totalProjected: 0
     };
 
+    // First pass: compute total monthly SIP for proportional initial capital split
+    const finalTotalMonthly = recommendations.reduce((sum, r) => sum + (r.monthly_allocation || 0), 0);
+
     let totalMonthly = 0;
     let proj = 0;
     const catMap = {};
@@ -121,18 +125,36 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
     recommendations.forEach((rec) => {
       totalMonthly += rec.monthly_allocation;
       
-      // Calculate a standard projection for the dynamic selected horizon
-      const months = horizon * 12;
+      // Calculate projection with step-up SIP and initial capital share
       let rate = rec.rate || rec.expected_return_max || 10;
-      let rateMin = rec.expected_return_min || (rate * 0.8);
+      let rateMin = rec.expected_return_min || (rate * 0.65);
       
       if (inflationAdjusted) {
         rate = Math.max(0, rate - 6.0);
         rateMin = Math.max(0, rateMin - 6.0);
       }
+
+      // Use AVERAGE rate for the headline projected value (donut center)
+      // This is the expected/most-likely scenario, not the optimistic best-case
+      const avgRate = (rateMin + rate) / 2;
       
-      const rateMonth = (rate / 100) / 12;
-      const futureValue = rateMonth > 0 ? rec.monthly_allocation * ((Math.pow(1 + rateMonth, months) - 1) / rateMonth) * (1 + rateMonth) : rec.monthly_allocation * months;
+      // Step-up SIP FV: iterate year-by-year, each year's SIP grows by stepUpPct%
+      const avgRateMonth = (avgRate / 100) / 12;
+      let sipFV = 0;
+      for (let yr = 0; yr < horizon; yr++) {
+        const sipThisYear = rec.monthly_allocation * Math.pow(1 + stepUpPct / 100, yr);
+        const monthsRemaining = (horizon - yr) * 12;
+        // FV of 12 monthly SIPs at end of this year compounded for remaining period
+        if (avgRateMonth > 0) {
+          sipFV += sipThisYear * ((Math.pow(1 + avgRateMonth, 12) - 1) / avgRateMonth) * (1 + avgRateMonth) * Math.pow(1 + avgRateMonth, monthsRemaining - 12);
+        } else {
+          sipFV += sipThisYear * 12;
+        }
+      }
+      // Initial capital share (proportional to this instrument's allocation using FINAL total)
+      const icShare = finalTotalMonthly > 0 ? (rec.monthly_allocation / finalTotalMonthly) * initialCapital : 0;
+      const icFV = avgRateMonth > 0 ? icShare * Math.pow(1 + avgRateMonth, horizon * 12) : icShare;
+      const futureValue = sipFV + icFV;
       proj += futureValue;
 
       // Outer Donut Aggregation
@@ -186,43 +208,54 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
       }
     });
 
+    // Step-up SIP FV helper for trajectory
+    const calcStepUpFV = (monthlySIP, annualRate, years) => {
+      const r = (annualRate / 100) / 12;
+      let fv = 0;
+      for (let yr = 0; yr < years; yr++) {
+        const sip = monthlySIP * Math.pow(1 + stepUpPct / 100, yr);
+        const mRem = (years - yr) * 12;
+        if (r > 0) {
+          fv += sip * ((Math.pow(1 + r, 12) - 1) / r) * (1 + r) * Math.pow(1 + r, mRem - 12);
+        } else {
+          fv += sip * 12;
+        }
+      }
+      return fv;
+    };
+
     // Generate performance trajectory points (0, 1/3, 2/3, horizon)
     const points = [0, Math.floor(horizon / 3), Math.floor((horizon * 2) / 3), horizon];
     const perfData = points.map(yr => {
-      const m = yr * 12;
       let worst = 0, avg = 0, best = 0;
       if (yr === 0) {
-        return { year: yr.toString(), worst: totalMonthly, average: totalMonthly, best: totalMonthly };
+        return { year: yr.toString(), worst: initialCapital + totalMonthly, average: initialCapital + totalMonthly, best: initialCapital + totalMonthly };
       }
       recommendations.forEach(r => {
          let rate = r.rate || r.expected_return_max || 10;
-         let minRate = r.expected_return_min || (rate * 0.8);
+         let minRate = r.expected_return_min || (rate * 0.65);
          
          if (inflationAdjusted) {
              rate = Math.max(0, rate - 6.0);
              minRate = Math.max(0, minRate - 6.0);
          }
          
-         const minR = (minRate / 100) / 12;
-         const maxR = (rate / 100) / 12;
-         const midR = ((minR + maxR) / 2);
-         worst += minR > 0 ? r.monthly_allocation * ((Math.pow(1 + minR, m) - 1) / minR) * (1 + minR) : r.monthly_allocation * m;
-         best += maxR > 0 ? r.monthly_allocation * ((Math.pow(1 + maxR, m) - 1) / maxR) * (1 + maxR) : r.monthly_allocation * m;
-         avg += midR > 0 ? r.monthly_allocation * ((Math.pow(1 + midR, m) - 1) / midR) * (1 + midR) : r.monthly_allocation * m;
+         const midRate = (minRate + rate) / 2;
+         // Step-up SIP FV for each scenario
+         worst += calcStepUpFV(r.monthly_allocation, minRate, yr);
+         best += calcStepUpFV(r.monthly_allocation, rate, yr);
+         avg += calcStepUpFV(r.monthly_allocation, midRate, yr);
       });
       
-      const initialRate = inflationAdjusted ? 0.06 : 0.12;
-      const initialFV = initialCapital * Math.pow(1 + initialRate, yr);
-      
+      // Initial capital compounding (proportional across instruments — use blended rate)
+      const blendedRate = inflationAdjusted ? 0.06 : 0.12;
+      const initialFV = initialCapital * Math.pow(1 + blendedRate, yr);
       worst += initialFV * 0.9;
       avg += initialFV;
       best += initialFV * 1.1;
       
       return { year: yr.toString(), worst, average: avg, best };
     });
-
-    const finalInitialFV = initialCapital * Math.pow(1 + (inflationAdjusted ? 0.06 : 0.12), horizon);
-    proj += finalInitialFV;
 
     // Expand all table rows by default on computed map
     const initialExpanded = {};
@@ -237,7 +270,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
       currentMonthly: totalMonthly,
       totalProjected: proj
     };
-  }, [recommendations, horizon, inflationAdjusted, initialCapital]);
+  }, [recommendations, horizon, inflationAdjusted, initialCapital, stepUpPct]);
 
   // Risk-grouped eligible instruments for "Browse by Risk Level"
   const riskGroups = useMemo(() => {
@@ -555,7 +588,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
             </div>
             <div className="param-row" style={{ marginTop: 2 }}>
               <span style={{fontSize: '0.75rem', color: '#64748b'}}>Annual Step-Up</span>
-              <div className="param-input-group" style={{padding: '2px 6px'}}><input type="text" defaultValue="10%" style={{width: 28, fontSize: '0.78rem'}} /></div>
+              <div className="param-input-group" style={{padding: '2px 6px'}}><input type="text" value={`${stepUpPct}%`} onChange={e => { const v = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10); if (!isNaN(v) && v >= 0 && v <= 50) setStepUpPct(v); }} style={{width: 32, fontSize: '0.78rem'}} /></div>
             </div>
 
             <div style={{height: 1, background: 'rgba(255,255,255,0.04)', margin: '14px 0'}} />
@@ -615,7 +648,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
                   {/* Center projected value */}
                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
                      <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums', textShadow: '0 0 20px rgba(56,189,248,0.15)' }}>₹{(totalProjected/100000).toFixed(1)}</div>
-                     <div style={{ fontSize: '0.55rem', color: '#546178', letterSpacing: '2px', textTransform: 'uppercase', marginTop: 3, fontWeight: 700 }}>LAKHS PROJ.</div>
+                     <div style={{ fontSize: '0.55rem', color: '#546178', letterSpacing: '2px', textTransform: 'uppercase', marginTop: 3, fontWeight: 700 }}>LAKHS AVG.</div>
                    </div>
                  </>
                )}
@@ -1163,7 +1196,11 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
               {(() => {
                 const recs = recommendations || [];
                 const avgReturn = recs.length > 0 
-                  ? (recs.reduce((s, r) => s + (r.rate || r.expected_return_max || 0), 0) / recs.length).toFixed(1) 
+                  ? (recs.reduce((s, r) => {
+                      const rMax = r.rate || r.expected_return_max || 0;
+                      const rMin = r.expected_return_min || (rMax * 0.65);
+                      return s + ((rMin + rMax) / 2);
+                    }, 0) / recs.length).toFixed(1) 
                   : '0';
                 const taxSavers = recs.filter(r => r.tax_benefit);
                 const taxPct = currentMonthly > 0 

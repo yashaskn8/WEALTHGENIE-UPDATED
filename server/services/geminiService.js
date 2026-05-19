@@ -18,7 +18,14 @@ export async function generateAdvisory(userContext) {
   const cached = await getCache(cacheKey);
   if (cached) return cached;
 
-  const instrumentList = instruments.map(i => `${i.name} (${i.type}) — post-tax return: ${i.postTaxReturn}%`).join('\n  ');
+  // Guard: ensure numeric fields are safe for toLocaleString/toFixed
+  const safeIncome = Number.isFinite(annualIncome) ? annualIncome : 0;
+  const safeSavings = Number.isFinite(monthlySavings) ? monthlySavings : 0;
+  const safeSlab = Number.isFinite(taxSlab) ? taxSlab : 0;
+  const safeHorizon = Number.isFinite(horizon) ? horizon : 15;
+  const safeAge = Number.isFinite(age) ? age : 30;
+
+  const instrumentList = (instruments || []).map(i => `${i.name || 'Unknown'} (${i.type || 'N/A'}) — post-tax return: ${i.postTaxReturn || 0}%`).join('\n  ');
 
   // Build SHAP context block if available
   let shapContext = '';
@@ -32,12 +39,12 @@ export async function generateAdvisory(userContext) {
   const prompt = `You are a certified Indian financial advisor. Based on the following investor profile, write a 3-paragraph advisory note (under 300 words total):
 
 Investor Profile:
-- Age: ${age} years
-- Annual Income: ₹${annualIncome.toLocaleString('en-IN')}
-- Monthly Savings: ₹${monthlySavings.toLocaleString('en-IN')}
-- Tax Slab: ${(taxSlab * 100).toFixed(0)}% marginal rate
-- Risk Category: ${riskCategory}
-- Investment Horizon: ${horizon} years
+- Age: ${safeAge} years
+- Annual Income: ₹${safeIncome.toLocaleString('en-IN')}
+- Monthly Savings: ₹${safeSavings.toLocaleString('en-IN')}
+- Tax Slab: ${(safeSlab * 100).toFixed(0)}% marginal rate
+- Risk Category: ${riskCategory || 'Moderate'}
+- Investment Horizon: ${safeHorizon} years
 
 Top 3 Recommended Instruments:
   ${instrumentList}

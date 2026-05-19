@@ -1,23 +1,34 @@
 /**
  * WealthGenie Monte Carlo Simulation Engine
- * Runs N simulations with normally distributed annual returns
+ * Runs N simulations with log-normally distributed returns (GBM)
  * to produce probabilistic wealth projections (percentile bands).
  *
  * Uses Box-Muller transform for random normal generation (no external deps).
+ *
+ * Mathematical basis:
+ *   Geometric Brownian Motion (GBM) discretized at monthly frequency.
+ *   S(t+dt) = S(t) × exp[(μ − σ²/2)dt + σ√dt × Z]
+ *   where Z ~ N(0,1), dt = 1/12 year
+ *
+ *   This guarantees non-negative portfolio values and correct expected
+ *   terminal wealth E[S(T)] = S(0) × exp(μT).
  */
 
 // ─── INSTRUMENT VOLATILITY CONSTANTS ─────────────────────────────────
 const INSTRUMENT_PARAMS = {
-  ELSS:       { mean: 0.12,  stdDev: 0.18  },
-  Equity_MF:  { mean: 0.12,  stdDev: 0.18  },
-  ETF:        { mean: 0.11,  stdDev: 0.16  },
-  Debt_MF:    { mean: 0.07,  stdDev: 0.03  },
-  FD:         { mean: 0.065, stdDev: 0.005 },
-  RBI_Bond:   { mean: 0.08,  stdDev: 0.002 },
-  'G-Sec':    { mean: 0.075, stdDev: 0.01  },
-  PPF:        { mean: 0.071, stdDev: 0.003 },
-  NPS:        { mean: 0.10,  stdDev: 0.12  },
-  Gold:       { mean: 0.09,  stdDev: 0.15  },
+  ELSS:         { mean: 0.12,   stdDev: 0.18  },
+  Equity_MF:    { mean: 0.12,   stdDev: 0.18  },
+  ETF:          { mean: 0.11,   stdDev: 0.16  },
+  Debt_MF:      { mean: 0.07,   stdDev: 0.03  },
+  FD:           { mean: 0.065,  stdDev: 0.005 },
+  RBI_Bond:     { mean: 0.08,   stdDev: 0.002 },
+  'G-Sec':      { mean: 0.075,  stdDev: 0.01  },
+  PPF:          { mean: 0.071,  stdDev: 0.003 },
+  NPS:          { mean: 0.10,   stdDev: 0.12  },
+  Gold:         { mean: 0.09,   stdDev: 0.15  },
+  SGB:          { mean: 0.105,  stdDev: 0.14  },  // Gold price + 2.5% coupon
+  Liquid_MF:    { mean: 0.065,  stdDev: 0.005 },  // Near-zero volatility
+  Arbitrage_MF: { mean: 0.07,   stdDev: 0.02  },  // Low vol arbitrage strategy
 };
 
 /**
@@ -35,24 +46,14 @@ function boxMuller() {
 }
 
 /**
- * Generate a normally distributed random number with given mean and stdDev.
- *
- * @param {number} mean
- * @param {number} stdDev
- * @returns {number}
- */
-function randomNormal(mean, stdDev) {
-  return mean + stdDev * boxMuller();
-}
-
-/**
- * Compute percentile from a sorted array.
+ * Compute percentile from a sorted array using linear interpolation.
  *
  * @param {number[]} sortedArr - Sorted array of numbers
  * @param {number} p - Percentile (0–100)
  * @returns {number}
  */
 function percentile(sortedArr, p) {
+  if (sortedArr.length === 0) return 0;
   const idx = (p / 100) * (sortedArr.length - 1);
   const lower = Math.floor(idx);
   const upper = Math.ceil(idx);
@@ -61,7 +62,13 @@ function percentile(sortedArr, p) {
 }
 
 /**
- * Run Monte Carlo simulation for SIP investment.
+ * Run Monte Carlo simulation for SIP investment using GBM.
+ *
+ * Key mathematical properties:
+ *   - Log-normal returns: balance is always non-negative without clamping
+ *   - Drift-corrected: monthly drift = (μ - σ²/2)/12
+ *   - Diffusion: monthly volatility = σ/√12
+ *   - Each month: balance = (balance + SIP) × exp(drift·dt + σ·√dt·Z)
  *
  * @param {Object} params
  * @param {number} params.monthlyInvestment - Monthly SIP amount in ₹
@@ -78,8 +85,32 @@ export function runMonteCarlo({
   years,
   simulations = 10000,
 }) {
+  // Input guards
+  if (!monthlyInvestment || monthlyInvestment <= 0) {
+    return emptyResult(years, simulations);
+  }
+  if (!years || years <= 0 || !Number.isFinite(years)) {
+    return emptyResult(1, simulations);
+  }
+  if (!Number.isFinite(postTaxAnnualReturn)) postTaxAnnualReturn = 0.08;
+  if (!Number.isFinite(annualVolatility) || annualVolatility < 0) annualVolatility = 0.05;
+
   const yearsArray = [];
   for (let y = 1; y <= years; y++) yearsArray.push(y);
+
+  // GBM monthly parameters
+  // dt = 1/12 (one month in years)
+  const dt = 1 / 12;
+
+  // Drift-corrected monthly mean:
+  //   Under GBM, the log-return drift is (μ - σ²/2).
+  //   Monthly: drift_m = (μ - σ²/2) × dt
+  // This ensures E[exp(drift_m + σ√dt × Z)] = exp(μ × dt),
+  // so the expected portfolio value matches the stated return.
+  const driftPerMonth = (postTaxAnnualReturn - 0.5 * annualVolatility * annualVolatility) * dt;
+
+  // Monthly volatility scaling: σ_m = σ × √dt
+  const volPerMonth = annualVolatility * Math.sqrt(dt);
 
   // finalValues[year_index] = array of terminal values across all simulations
   const allSimResults = yearsArray.map(() => []);
@@ -88,27 +119,25 @@ export function runMonteCarlo({
   for (let sim = 0; sim < simulations; sim++) {
     let balance = 0;
 
-    // Derive monthly distribution parameters from annual parameters.
-    // Monthly mean:    μ_m = postTaxAnnualReturn / 12
-    // Monthly stdDev:  σ_m = annualVolatility / sqrt(12)
-    // This preserves: E[annual] = 12 × μ_m
-    //                 Var[annual] = 12 × σ_m² = annualVolatility²
-    const monthlyMean = postTaxAnnualReturn / 12;
-    const monthlyStdDev = annualVolatility / Math.sqrt(12);
-
     for (let y = 0; y < years; y++) {
       for (let m = 0; m < 12; m++) {
-        // Draw independent sample for each month — no serial correlation
-        const monthlyReturn = monthlyMean + monthlyStdDev * boxMuller();
-        balance = (balance + monthlyInvestment) * (1 + monthlyReturn);
+        // Add monthly SIP contribution
+        balance += monthlyInvestment;
+
+        // Apply GBM return: S(t+dt) = S(t) × exp(drift + vol × Z)
+        // Using exp() guarantees the growth factor is always positive,
+        // so balance can never go negative — no clamping needed.
+        const z = boxMuller();
+        const growthFactor = Math.exp(driftPerMonth + volPerMonth * z);
+        balance *= growthFactor;
       }
 
       // Record balance at end of each year
-      allSimResults[y].push(Math.max(0, balance));
+      allSimResults[y].push(balance);
     }
 
     // Collect final-year balance for goal probability computation
-    finalValues.push(Math.max(0, balance));
+    finalValues.push(balance);
   }
 
   // Sort each year's results ONCE, then extract all percentiles
@@ -133,6 +162,21 @@ export function runMonteCarlo({
 }
 
 /**
+ * Generate an empty result set (for invalid inputs).
+ */
+function emptyResult(years, simulations) {
+  const n = Math.max(1, years || 1);
+  const zeros = Array.from({ length: n }, () => 0);
+  return {
+    years_array: Array.from({ length: n }, (_, i) => i + 1),
+    p10: [...zeros], p25: [...zeros], p50: [...zeros],
+    p75: [...zeros], p90: [...zeros], mean: [...zeros],
+    finalValues: [],
+    simulations_run: simulations || 0,
+  };
+}
+
+/**
  * Compute the probability that a goal amount is reached.
  *
  * @param {number[]} terminalValues - Array of final-year portfolio values from simulations
@@ -140,7 +184,7 @@ export function runMonteCarlo({
  * @returns {number} Probability as decimal (0–1)
  */
 export function computeGoalProbability(terminalValues, targetAmount) {
-  if (!terminalValues || terminalValues.length === 0) return 0;
+  if (!terminalValues || terminalValues.length === 0 || !targetAmount || targetAmount <= 0) return 0;
   const successes = terminalValues.filter(v => v >= targetAmount).length;
   return parseFloat((successes / terminalValues.length).toFixed(4));
 }
@@ -179,7 +223,11 @@ export function runMonteCarloWithGoal(params) {
  * @returns {{ mean: number, stdDev: number }}
  */
 export function getInstrumentVolatility(instrumentType, overrideMean) {
-  const defaults = INSTRUMENT_PARAMS[instrumentType] || { mean: 0.08, stdDev: 0.05 };
+  const params = INSTRUMENT_PARAMS[instrumentType];
+  if (!params) {
+    console.warn(`[MC] Unknown instrument type: '${instrumentType}'. Using default params {mean: 0.08, stdDev: 0.05}.`);
+  }
+  const defaults = params || { mean: 0.08, stdDev: 0.05 };
   return {
     mean: overrideMean !== undefined ? overrideMean : defaults.mean,
     stdDev: defaults.stdDev,
@@ -188,7 +236,20 @@ export function getInstrumentVolatility(instrumentType, overrideMean) {
 
 /**
  * Reverse SIP formula — compute monthly SIP required to reach a target.
- * P = FV × (r/12) / [((1 + r/12)^(12×n) - 1) × (1 + r/12)]
+ *
+ * Formula (annuity-due, monthly compounding):
+ *   FV_SIP = P × [((1+r)^n - 1) / r] × (1+r)
+ *   ∴ P = FV_SIP / { [((1+r)^n - 1) / r] × (1+r) }
+ *
+ * Where:
+ *   P = monthly SIP payment
+ *   r = monthly rate = annualRate / 12
+ *   n = total months = years × 12
+ *   FV_SIP = targetAmount − FV of existing corpus
+ *
+ * The existing corpus compounds MONTHLY (same frequency as SIP)
+ * to maintain mathematical consistency:
+ *   FV_current = currentSavings × (1 + r)^n
  *
  * @param {number} targetAmount - Future value target in ₹
  * @param {number} annualRate - Expected annual return (decimal)
@@ -197,13 +258,26 @@ export function getInstrumentVolatility(instrumentType, overrideMean) {
  * @returns {number} Required monthly SIP in ₹
  */
 export function reverseSIP(targetAmount, annualRate, years, currentSavings = 0) {
+  // Guard against invalid inputs — use explicit numeric checks, not truthy
+  if (!Number.isFinite(targetAmount) || targetAmount <= 0) return 0;
+  if (!Number.isFinite(years) || years <= 0) return 0;
+  if (!Number.isFinite(annualRate) || annualRate < 0) annualRate = 0;
+  if (!Number.isFinite(currentSavings) || currentSavings < 0) currentSavings = 0;
+
   const r = annualRate / 12;
   const n = years * 12;
 
-  // Subtract future value of existing corpus
-  const fvCurrent = currentSavings * Math.pow(1 + annualRate, years);
+  // Future value of existing corpus using MONTHLY compounding
+  // (consistent with SIP compounding frequency)
+  const fvCurrent = currentSavings > 0
+    ? currentSavings * Math.pow(1 + r, n)
+    : 0;
   const remaining = Math.max(0, targetAmount - fvCurrent);
 
+  if (remaining === 0) return 0;
   if (r === 0) return remaining / n;
+
+  // Invert the annuity-due formula:
+  //   P = remaining × r / [((1+r)^n - 1) × (1+r)]
   return remaining * r / ((Math.pow(1 + r, n) - 1) * (1 + r));
 }

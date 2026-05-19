@@ -21,6 +21,7 @@ const MessageSchema = new mongoose.Schema({
     latency_ms: Number,
     grounded_on_profile: Boolean,
     disclaimer_appended: Boolean,
+    provider: { type: String, enum: ['gemini', 'groq'] },
   },
 });
 
@@ -48,9 +49,15 @@ const ConversationHistorySchema = new mongoose.Schema({
   is_active: { type: Boolean, default: true },
 });
 
-// Auto-update updated_at and message_count on save
+const MAX_MESSAGES_PER_SESSION = 200;
+
+// Auto-update updated_at, message_count, and enforce message cap on save
 ConversationHistorySchema.pre('save', function (next) {
   this.updated_at = new Date();
+  // Enforce maximum messages per session — trim oldest if exceeded
+  if (this.messages.length > MAX_MESSAGES_PER_SESSION) {
+    this.messages = this.messages.slice(-MAX_MESSAGES_PER_SESSION);
+  }
   this.message_count = this.messages.length;
   next();
 });

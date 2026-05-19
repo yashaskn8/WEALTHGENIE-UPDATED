@@ -584,8 +584,10 @@ const HealthScoreScreen = ({ profile, recommendations, onNavigate }) => {
     const totalCategories = Math.max(4, new Set(['Equity', 'Debt', 'Government', 'Commodity', 'Equity-Debt']).size);
     const divScore = recommendations?.length > 0 ? Math.min(100, (categories.size / totalCategories) * 100) : 0;
 
-    const taxSavingRecs = (recommendations || []).filter(r => r.tax_benefit).length;
-    const taxScore = recommendations?.length > 0 ? (taxSavingRecs / recommendations.length) * 100 : 0;
+    const taxSavingRecs = (recommendations || []).filter(r => r.tax_benefit);
+    const taxSavingAlloc = taxSavingRecs.reduce((sum, r) => sum + (r.monthly_allocation || 0), 0);
+    const totalAlloc = (recommendations || []).reduce((sum, r) => sum + (r.monthly_allocation || 0), 0);
+    const taxScore = totalAlloc > 0 ? (taxSavingAlloc / totalAlloc) * 100 : 0;
 
     const declaredGoals = profile?.investment_goals || [];
     const coveredGoals = declaredGoals.filter(g => {

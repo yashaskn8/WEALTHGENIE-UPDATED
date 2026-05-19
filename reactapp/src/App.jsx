@@ -90,12 +90,12 @@ const ProfilePage = () => {
       alert('Please enter a valid age between 18 and 80.');
       return;
     }
-    if (!numIncome || isNaN(numIncome) || numIncome <= 0) {
-      alert('Please enter a valid monthly income.');
+    if (!numIncome || isNaN(numIncome) || numIncome < 1000 || numIncome > 100000000) {
+      alert('Monthly income must be between ₹1,000 and ₹10,00,00,000 (10 Crores).');
       return;
     }
-    if (!numSavings || isNaN(numSavings) || numSavings <= 0) {
-      alert('Please enter a valid monthly savings amount.');
+    if (!numSavings || isNaN(numSavings) || numSavings < 500 || numSavings > 100000000) {
+      alert('Monthly savings must be between ₹500 and ₹10,00,00,000 (10 Crores).');
       return;
     }
     if (numSavings >= numIncome) {
@@ -157,13 +157,37 @@ const ProfilePage = () => {
             <div className="pf-grid-2">
               <div className="pf-field">
                 <label>Age</label>
-                <input type="number" placeholder="32" value={age} onChange={e => setAge(Number(e.target.value))} min="18" max="80" />
+                <input 
+                  type="number" 
+                  placeholder="32" 
+                  value={age || ''} 
+                  onChange={e => {
+                    let val = e.target.value.replace(/^0+/, '');
+                    setAge(val === '' ? '' : Number(val));
+                  }} 
+                  min="18" 
+                  max="80" 
+                />
               </div>
               <div className="pf-field">
                 <label>Monthly Income (₹)</label>
                 <div className="pf-input-prefix">
                   <span className="prefix-symbol">₹</span>
-                  <input type="text" placeholder="6,500" value={monthlyIncome} onChange={e => setMonthlyIncome(e.target.value.replace(/,/g, ''))} />
+                  <input 
+                    type="number" 
+                    placeholder="65000" 
+                    value={monthlyIncome || ''} 
+                    onChange={e => {
+                      let val = e.target.value.replace(/^0+/, '');
+                      if (val === '') {
+                        setMonthlyIncome('');
+                      } else {
+                        let num = Number(val);
+                        if (num > 100000000) num = 100000000;
+                        setMonthlyIncome(num);
+                      }
+                    }} 
+                  />
                 </div>
               </div>
             </div>
@@ -171,8 +195,25 @@ const ProfilePage = () => {
             {/* Row 2: Monthly Savings & Risk Appetite */}
             <div className="pf-grid-2">
               <div className="pf-field">
-                <label>Monthly Savings Capacity</label>
-                <input type="text" placeholder="1,200" value={monthlySavings} onChange={e => setMonthlySavings(e.target.value.replace(/,/g, ''))} />
+                <label>Monthly Savings Capacity (₹)</label>
+                <div className="pf-input-prefix">
+                  <span className="prefix-symbol">₹</span>
+                  <input 
+                    type="number" 
+                    placeholder="12000" 
+                    value={monthlySavings || ''} 
+                    onChange={e => {
+                      let val = e.target.value.replace(/^0+/, '');
+                      if (val === '') {
+                        setMonthlySavings('');
+                      } else {
+                        let num = Number(val);
+                        if (num > 100000000) num = 100000000;
+                        setMonthlySavings(num);
+                      }
+                    }} 
+                  />
+                </div>
               </div>
               <div className="pf-field">
                 <label>Risk Appetite</label>

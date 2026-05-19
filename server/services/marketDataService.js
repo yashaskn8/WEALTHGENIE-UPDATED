@@ -89,8 +89,9 @@ export async function fetchIndexStatistics(symbol = '^NSEI') {
     const prices = response.data.chart.result[0].indicators.quote[0].close
       .filter(p => p !== null);
 
-    if (prices.length < 12) {
-      throw new Error('Insufficient price data for volatility computation');
+    if (prices.length < 13) {
+      // Need at least 13 data points to compute 12 monthly returns for meaningful volatility
+      throw new Error(`Insufficient price data (${prices.length} points, need 13+) for volatility computation`);
     }
 
     // Compute monthly returns
@@ -99,11 +100,12 @@ export async function fetchIndexStatistics(symbol = '^NSEI') {
       monthlyReturns.push((prices[i] - prices[i - 1]) / prices[i - 1]);
     }
 
-    // Annualise: geometric mean for return, arithmetic for volatility
+    // Annualise: geometric mean for return, sample std dev for volatility
     const meanMonthly = monthlyReturns.reduce((a, b) => a + b, 0) / monthlyReturns.length;
+    // Bessel's correction: divide by (N-1) for unbiased sample variance
     const variance = monthlyReturns.reduce(
       (acc, r) => acc + Math.pow(r - meanMonthly, 2), 0
-    ) / monthlyReturns.length;
+    ) / (monthlyReturns.length - 1);
 
     const stats = {
       symbol,

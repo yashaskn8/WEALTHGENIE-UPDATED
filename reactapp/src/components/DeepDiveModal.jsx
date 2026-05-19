@@ -158,8 +158,13 @@ const DeepDiveModal = ({ isOpen, onClose, investment, allRecommendations, horizo
       return maturityValue - (taxableGains * 0.125);
     }
     
-    // Debt / FD: taxed at slab rate (assume 30% for high earners)
-    if (cat === 'debt' || name.includes('fd') || name.includes('fixed deposit') || name.includes('rbi')) {
+    // Debt / FD / Government slab-taxed: taxed at slab rate (assume 30% for high earners)
+    if (cat === 'debt' || cat === 'government' || name.includes('fd') || name.includes('fixed deposit') || name.includes('rbi') || name.includes('scss') || name.includes('pmvvy') || name.includes('vaya vandana')) {
+      // PPF/SSY already caught above (EEE); NPS handled separately if needed
+      if (name.includes('nps')) {
+        // NPS: 60% lump sum tax-free, 40% annuity taxed at slab
+        return maturityValue - (gains * 0.40 * 0.30);
+      }
       return maturityValue - (gains * 0.30);
     }
     

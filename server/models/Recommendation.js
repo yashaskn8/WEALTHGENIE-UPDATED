@@ -9,6 +9,7 @@ const instrumentDetailSchema = new mongoose.Schema({
   riskLevel: String,
   lockIn: Number,
   tags: [String],
+  taxNotes: String,
 }, { _id: false });
 
 const recommendationSchema = new mongoose.Schema({

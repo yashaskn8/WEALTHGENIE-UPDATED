@@ -107,10 +107,12 @@ describe('Post-Tax Return Calculator — FY2025-26', () => {
   });
 
   describe('Edge Cases', () => {
-    test('unknown instrument type throws error', () => {
-      expect(() => {
-        calculatePostTaxReturn('Bitcoin', 0.50, 1000000, 1, 'new');
-      }).toThrow('Unknown instrument type');
+    test('unknown instrument type falls back to slab rate (graceful)', () => {
+      const result = calculatePostTaxReturn('Bitcoin', 0.50, 1000000, 1, 'new');
+      // Unknown instruments default to slab taxation — safer than throwing in production
+      expect(result.taxType).toContain('default');
+      expect(result.postTaxReturn).toBeLessThan(0.50);
+      expect(result.postTaxReturn).toBeGreaterThan(0);
     });
 
     test('old regime produces different marginal rate', () => {

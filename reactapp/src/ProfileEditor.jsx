@@ -20,8 +20,8 @@ const ProfileEditor = ({ userProfile, onProfileUpdate }) => {
 
   const profileFields = [
     { key: 'age', label: 'Age', icon: <Clock size={20} color="#94a3b8" />, type: 'number', min: 18, max: 80 },
-    { key: 'monthly_income', label: 'Monthly Income', icon: <Banknote size={20} color="#34d399" />, type: 'currency' },
-    { key: 'monthly_savings', label: 'Monthly Savings', icon: <Wallet size={20} color="#38bdf8" />, type: 'currency' },
+    { key: 'monthly_income', label: 'Monthly Income', icon: <Banknote size={20} color="#34d399" />, type: 'currency', min: 1000, max: 100000000 },
+    { key: 'monthly_savings', label: 'Monthly Savings', icon: <Wallet size={20} color="#38bdf8" />, type: 'currency', min: 500, max: 100000000 },
     { key: 'risk_appetite', label: 'Risk Appetite', icon: <Scale size={20} color="#fbbf24" />, type: 'risk' },
     { key: 'investment_goals', label: 'Investment Goals', icon: <Target size={20} color="#fb7185" />, type: 'goals' },
     { key: 'investment_horizon', label: 'Investment Horizon', icon: <Telescope size={20} color="#a78bfa" />, type: 'slider', min: 1, max: 30, suffix: ' years' },
@@ -46,12 +46,12 @@ const ProfileEditor = ({ userProfile, onProfileUpdate }) => {
       alert('Age must be between 18 and 80.');
       return;
     }
-    if (!numIncome || numIncome <= 0) {
-      alert('Please enter a valid monthly income.');
+    if (!numIncome || numIncome < 1000 || numIncome > 100000000) {
+      alert('Monthly income must be between ₹1,000 and ₹10,00,00,000 (10 Crores).');
       return;
     }
-    if (!numSavings || numSavings < 500) {
-      alert('Monthly savings must be at least ₹500.');
+    if (!numSavings || numSavings < 500 || numSavings > 100000000) {
+      alert('Monthly savings must be between ₹500 and ₹10,00,00,000 (10 Crores).');
       return;
     }
     if (numSavings >= numIncome) {
@@ -97,17 +97,14 @@ const ProfileEditor = ({ userProfile, onProfileUpdate }) => {
       return (
         <input
           type="number"
-          value={val}
+          value={val === 0 || val === '0' ? '' : val}
           min={field.min}
           max={field.max}
           onChange={e => {
-            let raw = e.target.value;
-            // Strip leading zeros (prevents "088")
-            if (raw.length > 1 && raw.startsWith('0')) raw = raw.replace(/^0+/, '') || '0';
-            let num = Number(raw);
-            // Clamp to min/max if defined
-            if (field.max !== undefined && num > field.max) num = field.max;
-            if (field.min !== undefined && num < field.min && raw !== '') num = Math.max(0, num);
+            let raw = e.target.value.replace(/^0+/, '');
+            let num = raw === '' ? '' : Number(raw);
+            // Clamp to max if defined
+            if (field.max !== undefined && num !== '' && num > field.max) num = field.max;
             setDraft(prev => ({ ...prev, [field.key]: num }));
           }}
           style={{

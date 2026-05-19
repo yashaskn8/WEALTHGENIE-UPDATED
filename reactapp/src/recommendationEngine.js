@@ -674,7 +674,19 @@ export function generateRecommendations(userProfile) {
   recommended.forEach(inv => {
     inv.projected_value = calculateSIPValue(inv.monthly_allocation, inv.rate, profile.investment_horizon);
     inv.category = inv.cat;
-    inv.expected_return_min = Math.max(inv.rate - 2, inv.rate * 0.8);
+    // Risk-appropriate return ranges for realistic projections
+    // Higher-risk instruments have wider downside ranges
+    if (inv.risk >= 5) {
+      inv.expected_return_min = parseFloat((inv.rate * 0.50).toFixed(1)); // Very High: 23→11.5%
+    } else if (inv.risk >= 4) {
+      inv.expected_return_min = parseFloat((inv.rate * 0.55).toFixed(1)); // High: 22→12.1%, 16→8.8%
+    } else if (inv.risk >= 3) {
+      inv.expected_return_min = parseFloat((inv.rate * 0.65).toFixed(1)); // Medium: 12.5→8.1%, 14→9.1%
+    } else if (inv.risk >= 2) {
+      inv.expected_return_min = parseFloat((inv.rate * 0.85).toFixed(1)); // Low: 6.5→5.5%
+    } else {
+      inv.expected_return_min = parseFloat((inv.rate * 0.90).toFixed(1)); // Very Low (govt fixed): 7.1→6.4%
+    }
     inv.expected_return_max = inv.rate;
     inv.risk_level = inv.riskLabel;
     inv.tax_benefit = ["eee", "elss", "nps", "sgb"].includes(inv.taxType);

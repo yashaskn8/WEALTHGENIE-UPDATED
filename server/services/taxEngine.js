@@ -89,6 +89,13 @@ function computeSurcharge(taxBeforeSurcharge, taxableIncome, regime) {
  * @returns {{ taxAmount, effectiveRate, regime, rebateApplied, surchargeApplied, surchargeAmount, cess, taxBeforeCess, taxableIncome }}
  */
 export function computeTax(annualIncome, regime = 'new') {
+  // Input guard: reject non-finite or negative income
+  if (!Number.isFinite(annualIncome) || annualIncome < 0) {
+    console.warn(`[TaxEngine] Invalid annualIncome: ${annualIncome}. Treating as 0.`);
+    annualIncome = 0;
+  }
+  if (regime !== 'new' && regime !== 'old') regime = 'new';
+
   const slabs = regime === 'new' ? NEW_REGIME_SLABS : OLD_REGIME_SLABS;
 
   // Standard deduction
@@ -142,6 +149,10 @@ export function computeTax(annualIncome, regime = 'new') {
  * @returns {number} marginal tax rate as decimal (e.g. 0.30 for 30%)
  */
 export function getTaxSlab(annualIncome, regime = 'new') {
+  // Input guard
+  if (!Number.isFinite(annualIncome) || annualIncome < 0) annualIncome = 0;
+  if (regime !== 'new' && regime !== 'old') regime = 'new';
+
   const standardDeduction = regime === 'new' ? 75000 : 50000;
   const taxableIncome = Math.max(0, annualIncome - standardDeduction);
   const slabs = regime === 'new' ? NEW_REGIME_SLABS : OLD_REGIME_SLABS;
@@ -165,6 +176,9 @@ export function getTaxSlab(annualIncome, regime = 'new') {
  * @returns {{ newRegime, oldRegime, recommended }}
  */
 export function compareTaxRegimes(annualIncome) {
+  // Input guard
+  if (!Number.isFinite(annualIncome) || annualIncome < 0) annualIncome = 0;
+
   const newRegime = computeTax(annualIncome, 'new');
   const oldRegime = computeTax(annualIncome, 'old');
   const recommended = newRegime.taxAmount <= oldRegime.taxAmount ? 'new' : 'old';

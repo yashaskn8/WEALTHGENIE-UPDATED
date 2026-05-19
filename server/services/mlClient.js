@@ -28,19 +28,39 @@ export async function checkMLHealth() {
 }
 
 export function getRuleBasedFallback({ age, annual_income, risk_category }) {
+  const safeAge = Number(age) || 30;
+  const safeIncome = Number(annual_income) || 600000;
+  const safeRisk = risk_category || 'Moderate';
+
   let primary, secondary, tertiary;
-  const path = [`risk=${risk_category}`, `age=${age}`];
-  if (risk_category === 'Aggressive') {
-    primary = 'ELSS'; secondary = 'Equity_MF'; tertiary = 'ETF';
-  } else if (risk_category === 'Moderate-Aggressive') {
-    primary = 'Equity_MF'; secondary = 'ETF'; tertiary = 'ELSS';
-  } else if (risk_category === 'Moderate') {
-    primary = 'ETF'; secondary = 'Debt_MF'; tertiary = 'ELSS';
-  } else if (risk_category === 'Conservative-Moderate') {
-    primary = 'Debt_MF'; secondary = 'FD'; tertiary = 'RBI_Bond';
+  const path = [`risk=${safeRisk}`, `age=${safeAge}`, `income=${safeIncome}`];
+
+  if (safeRisk === 'Aggressive') {
+    // Seniors should never get pure equity even if labelled aggressive
+    if (safeAge >= 55) {
+      primary = 'ETF'; secondary = 'Debt_MF'; tertiary = 'FD';
+    } else {
+      primary = 'ELSS'; secondary = 'Equity_MF'; tertiary = 'ETF';
+    }
+  } else if (safeRisk === 'Moderate-Aggressive') {
+    primary = 'Equity_MF'; secondary = 'ETF'; tertiary = safeAge < 30 ? 'ELSS' : 'Debt_MF';
+  } else if (safeRisk === 'Moderate') {
+    primary = 'ETF'; secondary = 'Debt_MF';
+    tertiary = safeAge >= 60 ? 'RBI_Bond' : 'ELSS';
+  } else if (safeRisk === 'Conservative-Moderate') {
+    primary = 'Debt_MF'; secondary = safeAge >= 60 ? 'RBI_Bond' : 'FD';
+    tertiary = safeAge >= 60 ? 'FD' : 'RBI_Bond';
   } else {
-    primary = age > 60 ? 'RBI_Bond' : 'FD';
-    secondary = 'Debt_MF'; tertiary = 'RBI_Bond';
+    // Conservative
+    primary = safeAge >= 60 ? 'RBI_Bond' : 'FD';
+    secondary = 'Debt_MF';
+    tertiary = safeAge >= 60 ? 'FD' : 'RBI_Bond';
   }
-  return { primary, secondary, tertiary, confidence_scores: { [primary]: 0.6, [secondary]: 0.25, [tertiary]: 0.15 }, decision_path: path, fallback: true };
+
+  return {
+    primary, secondary, tertiary,
+    confidence_scores: { [primary]: 0.6, [secondary]: 0.25, [tertiary]: 0.15 },
+    decision_path: path,
+    fallback: true,
+  };
 }
