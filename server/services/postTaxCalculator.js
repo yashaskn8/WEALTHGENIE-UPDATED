@@ -323,18 +323,18 @@ export function calculatePostTaxReturn(
     }
 
     case 'Gold': {
-      // Gold ETF: same as Equity ETF post Budget 2024.
-      // STCG (<1yr): 20% flat
-      // LTCG (≥1yr): 12.5%
+      // Gold ETF/MF: post Budget 2024, held over 12 months = LTCG at 12.5%.
+      // STCG (<1yr): taxed at marginal slab rate (NOT 20% — that's equity only).
+      // No indexation benefit post-July 2024.
       if (holdingYears < 1) {
-        const stcgRate = 0.20;
-        const postTax = nominalRate * (1 - stcgRate);
+        const postTax = nominalRate * (1 - marginalRate);
         const result = {
           postTaxReturn: round4(postTax),
           effectiveYield: round4(postTax * 100),
-          taxType: 'STCG (20% flat)',
-          taxRate: stcgRate,
-          notes: 'Gold ETF held < 1 year: STCG at 20%.'
+          taxType: `STCG at Slab Rate (${(marginalRate*100).toFixed(0)}%)`,
+          taxRate: marginalRate,
+          notes: 'Gold ETF held < 1 year: STCG taxed at slab rate. '
+               + 'No indexation. 20% flat STCG only applies to listed equity.'
         };
         return validatePostTaxResult(result, nominalRate, 'Gold');
       } else {
@@ -343,10 +343,11 @@ export function calculatePostTaxReturn(
         const result = {
           postTaxReturn: round4(postTax),
           effectiveYield: round4(postTax * 100),
-          taxType: 'LTCG (12.5%)',
+          taxType: 'LTCG (12.5%, no indexation)',
           taxRate: ltcgRate,
-          notes: 'Gold ETF taxation. For Sovereign Gold Bonds held to maturity '
-               + '(8 years), capital gains are fully exempt.'
+          notes: 'Gold ETF LTCG at 12.5% without indexation (post Budget 2024). '
+               + 'For Sovereign Gold Bonds held to maturity (8yr), '
+               + 'capital gains are fully exempt under Section 47(viic).'
         };
         return validatePostTaxResult(result, nominalRate, 'Gold');
       }

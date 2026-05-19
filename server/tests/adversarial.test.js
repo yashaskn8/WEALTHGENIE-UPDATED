@@ -452,3 +452,108 @@ describe('Monte Carlo — Hybrid Variance Reduction', () => {
     expect(ratio).toBeLessThan(1.25);
   });
 });
+
+// ═══════════════════════════════════════════════════════════
+// 9. XIRR CALCULATOR — NEWTON-RAPHSON CONVERGENCE
+// ═══════════════════════════════════════════════════════════
+
+import { computeXIRR, computeSIPXIRR } from '../services/xirrCalculator.js';
+
+describe('XIRR Calculator — Newton-Raphson', () => {
+  test('simple 1-year doubling → ~100% XIRR', () => {
+    const result = computeXIRR([
+      { amount: -100000, date: new Date('2025-01-01') },
+      { amount: 200000, date: new Date('2026-01-01') },
+    ]);
+    expect(result.converged).toBe(true);
+    expect(result.rate).toBeCloseTo(1.0, 2); // 100%
+  });
+
+  test('10% annual return over 1 year', () => {
+    const result = computeXIRR([
+      { amount: -100000, date: new Date('2025-01-01') },
+      { amount: 110000, date: new Date('2026-01-01') },
+    ]);
+    expect(result.converged).toBe(true);
+    expect(result.rate).toBeCloseTo(0.10, 2);
+  });
+
+  test('SIP XIRR: 12 months SIP at ₹10K → converges', () => {
+    // 12 monthly SIPs of ₹10K = ₹1.2L invested
+    // If current value is ₹1.3L, XIRR should be positive
+    const result = computeSIPXIRR(10000, 12, 130000);
+    expect(result.converged).toBe(true);
+    expect(result.rate).toBeGreaterThan(0);
+  });
+
+  test('SIP XIRR: loss scenario → negative rate', () => {
+    const result = computeSIPXIRR(10000, 12, 100000); // invested 1.2L, got 1L back
+    expect(result.converged).toBe(true);
+    expect(result.rate).toBeLessThan(0);
+  });
+
+  test('edge: single cashflow → error', () => {
+    const result = computeXIRR([{ amount: -100000, date: new Date() }]);
+    expect(result.converged).toBe(false);
+    expect(result.error).toBeDefined();
+  });
+
+  test('edge: all positive cashflows → error', () => {
+    const result = computeXIRR([
+      { amount: 100000, date: new Date('2025-01-01') },
+      { amount: 200000, date: new Date('2026-01-01') },
+    ]);
+    expect(result.converged).toBe(false);
+  });
+
+  test('edge: invalid SIP inputs → graceful return', () => {
+    expect(computeSIPXIRR(0, 12, 100000).converged).toBe(false);
+    expect(computeSIPXIRR(10000, 0, 100000).converged).toBe(false);
+    expect(computeSIPXIRR(10000, 12, 0).converged).toBe(false);
+  });
+
+  test('string dates are parsed correctly', () => {
+    const result = computeXIRR([
+      { amount: -100000, date: '2025-01-01' },
+      { amount: 115000, date: '2026-01-01' },
+    ]);
+    expect(result.converged).toBe(true);
+    expect(result.rate).toBeCloseTo(0.15, 2);
+  });
+
+  test('npvResidual is near zero on convergence', () => {
+    const result = computeXIRR([
+      { amount: -50000, date: '2024-01-01' },
+      { amount: -50000, date: '2024-07-01' },
+      { amount: 120000, date: '2025-06-01' },
+    ]);
+    expect(result.converged).toBe(true);
+    expect(Math.abs(result.npvResidual)).toBeLessThan(0.01);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// 10. POST-TAX — GOLD STCG SLAB RATE VERIFICATION
+// ═══════════════════════════════════════════════════════════
+
+describe('Post-Tax — Gold STCG uses Slab Rate (not 20%)', () => {
+  test('Gold ETF short-term: taxed at slab rate, NOT 20%', () => {
+    const result = calculatePostTaxReturn('Gold', 0.09, 1500000, 0.5, 'new');
+    // At ₹15L income, slab rate ≠ 20% — it should be marginal slab
+    const marginal = getTaxSlab(1500000, 'new');
+    expect(result.taxRate).toBe(marginal);
+    expect(result.taxType).toContain('Slab Rate');
+  });
+
+  test('Gold ETF short-term at different incomes → different tax rates', () => {
+    const r1 = calculatePostTaxReturn('Gold', 0.09, 500000, 0.5, 'new');
+    const r2 = calculatePostTaxReturn('Gold', 0.09, 2000000, 0.5, 'new');
+    // Lower income should have lower/equal tax rate
+    expect(r1.taxRate).toBeLessThanOrEqual(r2.taxRate);
+  });
+
+  test('Gold ETF long-term: still LTCG at 12.5%', () => {
+    const result = calculatePostTaxReturn('Gold', 0.09, 1500000, 3, 'new');
+    expect(result.taxRate).toBe(0.125);
+  });
+});

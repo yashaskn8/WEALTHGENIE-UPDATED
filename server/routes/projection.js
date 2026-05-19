@@ -5,6 +5,7 @@ import { validate, projectionSchema } from '../validation/schemas.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import { generateProjections } from '../services/projectionEngine.js';
 import { calculatePostTaxReturnSafe } from '../services/postTaxCalculator.js';
+import { computeXIRR, computeSIPXIRR } from '../services/xirrCalculator.js';
 
 const router = Router();
 
@@ -78,6 +79,52 @@ router.post('/', verifyJWT, validate(projectionSchema), asyncHandler(async (req,
   const projections = generateProjections(investAmount, instList, postTaxRates, projYears);
 
   res.json(projections);
+}));
+
+/**
+ * POST /api/projection/xirr [Protected]
+ * Compute XIRR (Extended Internal Rate of Return) for irregular cashflows.
+ * Uses Newton-Raphson iteration — the institutional standard for evaluating
+ * SIP performance where each installment has a different holding period.
+ *
+ * Body: { cashflows: [{amount, date}], guess?: number }
+ *   OR: { monthlySIP, months, currentValue }  (SIP convenience mode)
+ */
+router.post('/xirr', verifyJWT, asyncHandler(async (req, res) => {
+  const { cashflows, monthlySIP, months, currentValue, guess } = req.body;
+
+  // SIP convenience mode
+  if (monthlySIP && months && currentValue) {
+    if (!Number.isFinite(monthlySIP) || monthlySIP <= 0) {
+      throw createError(400, 'Invalid monthlySIP', 'Monthly SIP must be a positive number.');
+    }
+    if (!Number.isFinite(months) || months < 1) {
+      throw createError(400, 'Invalid months', 'Months must be at least 1.');
+    }
+    if (!Number.isFinite(currentValue) || currentValue <= 0) {
+      throw createError(400, 'Invalid currentValue', 'Current value must be a positive number.');
+    }
+    const result = computeSIPXIRR(monthlySIP, months, currentValue);
+    return res.json({ mode: 'sip', ...result });
+  }
+
+  // General XIRR mode
+  if (!Array.isArray(cashflows) || cashflows.length < 2) {
+    throw createError(400, 'Invalid cashflows', 'Provide at least 2 cashflows with amount and date.');
+  }
+
+  // Validate each cashflow
+  for (const cf of cashflows) {
+    if (!Number.isFinite(cf.amount)) {
+      throw createError(400, `Invalid cashflow amount: ${cf.amount}`, 'Each cashflow must have a finite amount.');
+    }
+    if (!cf.date) {
+      throw createError(400, 'Missing cashflow date', 'Each cashflow must have a date.');
+    }
+  }
+
+  const result = computeXIRR(cashflows, guess);
+  res.json({ mode: 'general', ...result });
 }));
 
 export default router;
