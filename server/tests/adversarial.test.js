@@ -248,34 +248,40 @@ describe('Reverse SIP — Edge Cases', () => {
 });
 
 // ═══════════════════════════════════════════════════════════
-// 5. RISK PROFILER — BOUNDARY VALUES
+// 5. RISK PROFILER — BOUNDARY VALUES (3-FACTOR MODEL)
 // ═══════════════════════════════════════════════════════════
 
 describe('Risk Profiler — Boundary Values', () => {
-  test('youngest + highest income → Aggressive', () => {
-    const r = getRiskProfile(18, 50000000);
+  test('youngest + highest income + long horizon → Aggressive', () => {
+    const r = getRiskProfile(18, 50000000, 30);
     expect(r.category).toBe('Aggressive');
     expect(r.riskScore).toBeGreaterThanOrEqual(80);
   });
 
-  test('oldest + lowest income → Conservative', () => {
-    const r = getRiskProfile(80, 100000);
+  test('oldest + lowest income + short horizon → Conservative', () => {
+    const r = getRiskProfile(80, 100000, 1);
     expect(r.category).toBe('Conservative');
     expect(r.riskScore).toBeLessThan(20);
   });
 
-  test('mid-age mid-income → Moderate', () => {
+  test('mid-age mid-income default horizon → Moderate range', () => {
     const r = getRiskProfile(40, 800000);
     expect(['Moderate', 'Moderate-Aggressive', 'Conservative-Moderate']).toContain(r.category);
   });
 
+  test('horizon increases risk tolerance', () => {
+    const short = getRiskProfile(35, 1000000, 1);
+    const long = getRiskProfile(35, 1000000, 30);
+    expect(long.riskScore).toBeGreaterThan(short.riskScore);
+  });
+
   test('riskScore is always 0-100', () => {
     const cases = [
-      [18, 100000], [25, 300000], [35, 600000],
-      [45, 1200000], [55, 2500000], [65, 5000000], [80, 50000000],
+      [18, 100000, 1], [25, 300000, 5], [35, 600000, 10],
+      [45, 1200000, 15], [55, 2500000, 20], [65, 5000000, 30], [80, 50000000, 40],
     ];
-    cases.forEach(([age, income]) => {
-      const r = getRiskProfile(age, income);
+    cases.forEach(([age, income, horizon]) => {
+      const r = getRiskProfile(age, income, horizon);
       expect(r.riskScore).toBeGreaterThanOrEqual(0);
       expect(r.riskScore).toBeLessThanOrEqual(100);
     });
@@ -298,12 +304,9 @@ describe('Risk Profiler — Boundary Values', () => {
   });
 
   test('equity allocation is monotonically increasing with risk', () => {
-    const categories = ['Conservative', 'Conservative-Moderate', 'Moderate', 'Moderate-Aggressive', 'Aggressive'];
     let prevAlloc = 0;
-    // We can't test via getRiskProfile since it depends on age/income,
-    // but we can verify the constants are ordered.
     const EXPECTED_ALLOCS = [20, 35, 50, 65, 80];
-    EXPECTED_ALLOCS.forEach((alloc, i) => {
+    EXPECTED_ALLOCS.forEach((alloc) => {
       expect(alloc).toBeGreaterThan(prevAlloc);
       prevAlloc = alloc;
     });
@@ -337,5 +340,85 @@ describe('Cross-Module Financial Invariants', () => {
       expect(Number.isNaN(r.postTaxReturn)).toBe(false);
       expect(Number.isFinite(r.postTaxReturn)).toBe(true);
     });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// 7. SECTION 87A MARGINAL RELIEF
+// ═══════════════════════════════════════════════════════════
+
+describe('Tax Engine — Section 87A Marginal Relief', () => {
+  test('₹12,75,000 → zero tax (rebate)', () => {
+    expect(computeTax(1275000, 'new').taxAmount).toBe(0);
+  });
+
+  test('₹12,75,001 → tax ≤ ₹2 (marginal relief caps tax at ₹1 + cess)', () => {
+    const r = computeTax(1275001, 'new');
+    expect(r.taxAmount).toBeGreaterThan(0);
+    expect(r.taxAmount).toBeLessThanOrEqual(2); // ₹1 + 4% cess ≈ ₹1.04 → rounds to ₹1
+    expect(r.marginalReliefApplied).toBe(true);
+  });
+
+  test('₹13,00,000 → marginal relief still applies (tax < slab tax)', () => {
+    const r = computeTax(1300000, 'new');
+    // Taxable = 12,25,000 (after 75K SD). Excess over 12L = 25,000
+    // Normal slab tax ≈ ₹63,750. Marginal relief caps at ₹25,000 + cess
+    expect(r.marginalReliefApplied).toBe(true);
+    expect(r.taxAmount).toBeLessThanOrEqual(26000); // 25000 × 1.04
+  });
+
+  test('₹20,00,000 → no marginal relief (normal tax < excess)', () => {
+    const r = computeTax(2000000, 'new');
+    expect(r.marginalReliefApplied).toBe(false);
+  });
+
+  test('old regime: ₹5,50,001 → marginal relief caps tax near ₹1', () => {
+    const r = computeTax(550001, 'old');
+    expect(r.taxAmount).toBeGreaterThan(0);
+    expect(r.taxAmount).toBeLessThanOrEqual(2);
+    expect(r.marginalReliefApplied).toBe(true);
+  });
+
+  test('tax is still monotonically non-decreasing with marginal relief', () => {
+    let prevTax = 0;
+    for (let income = 1200000; income <= 1500000; income += 10000) {
+      const tax = computeTax(income, 'new').taxAmount;
+      expect(tax).toBeGreaterThanOrEqual(prevTax);
+      prevTax = tax;
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// 8. MONTE CARLO — ANTITHETIC VARIATES CONVERGENCE
+// ═══════════════════════════════════════════════════════════
+
+describe('Monte Carlo — Antithetic Variates', () => {
+  test('reports antithetic_variates as variance_reduction method', () => {
+    const result = runMonteCarlo({
+      monthlyInvestment: 10000, postTaxAnnualReturn: 0.10,
+      annualVolatility: 0.18, years: 5, simulations: 200,
+    });
+    expect(result.variance_reduction).toBe('antithetic_variates');
+  });
+
+  test('standard_error array is present and finite', () => {
+    const result = runMonteCarlo({
+      monthlyInvestment: 10000, postTaxAnnualReturn: 0.10,
+      annualVolatility: 0.18, years: 5, simulations: 500,
+    });
+    expect(result.standard_error).toHaveLength(5);
+    result.standard_error.forEach(se => {
+      expect(Number.isFinite(se)).toBe(true);
+      expect(se).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  test('simulations_run is always even (paired antithetic paths)', () => {
+    const result = runMonteCarlo({
+      monthlyInvestment: 10000, postTaxAnnualReturn: 0.10,
+      annualVolatility: 0.18, years: 3, simulations: 501,
+    });
+    expect(result.simulations_run % 2).toBe(0);
   });
 });

@@ -82,6 +82,52 @@ function computeSurcharge(taxBeforeSurcharge, taxableIncome, regime) {
 }
 
 /**
+ * Compute surcharge WITH marginal relief.
+ * Prevents the cliff where ₹1 of additional income triggers a disproportionate
+ * surcharge increase. The total (tax + surcharge) at the higher tier must not
+ * exceed (tax + surcharge at the threshold) + (excess income above threshold).
+ *
+ * @param {number} taxBeforeSurcharge
+ * @param {number} taxableIncome
+ * @param {string} regime
+ * @param {Array} slabs - Tax slab structure for the regime
+ * @returns {number} surcharge amount (with marginal relief applied if needed)
+ */
+function computeSurchargeWithMarginalRelief(taxBeforeSurcharge, taxableIncome, regime, slabs) {
+  const rawSurcharge = computeSurcharge(taxBeforeSurcharge, taxableIncome, regime);
+  if (rawSurcharge === 0) return 0;
+
+  // Determine the threshold that was just crossed
+  const thresholds = regime === 'new'
+    ? [{ limit: 20000000, lowerRate: 0.15 },
+       { limit: 10000000, lowerRate: 0.10 },
+       { limit: 5000000,  lowerRate: 0    }]
+    : [{ limit: 50000000, lowerRate: 0.25 },
+       { limit: 20000000, lowerRate: 0.15 },
+       { limit: 10000000, lowerRate: 0.10 },
+       { limit: 5000000,  lowerRate: 0    }];
+
+  for (const tier of thresholds) {
+    if (taxableIncome > tier.limit) {
+      const taxAtThreshold = calculateFromSlabs(tier.limit, slabs);
+      const surchargeAtThreshold = taxAtThreshold * tier.lowerRate;
+      const totalAtThreshold = taxAtThreshold + surchargeAtThreshold;
+      const totalWithRawSurcharge = taxBeforeSurcharge + rawSurcharge;
+      const excess = taxableIncome - tier.limit;
+
+      if (totalWithRawSurcharge > totalAtThreshold + excess) {
+        // Marginal relief: cap total tax+surcharge
+        const cappedTotal = totalAtThreshold + excess;
+        return Math.max(0, cappedTotal - taxBeforeSurcharge);
+      }
+      break; // Only check the first (highest applicable) tier
+    }
+  }
+
+  return rawSurcharge;
+}
+
+/**
  * Compute full tax breakdown for a given annual income.
  *
  * @param {number} annualIncome - Gross annual income in ₹
@@ -104,18 +150,38 @@ export function computeTax(annualIncome, regime = 'new') {
 
   let taxBeforeCess = calculateFromSlabs(taxableIncome, slabs);
 
-  // Section 87A rebate
+  // ── Section 87A Rebate with MARGINAL RELIEF ────────────────────────
+  // Marginal relief prevents the "tax cliff" at the rebate boundary.
+  // Without it: ₹12,75,000 → ₹0 tax, ₹12,75,001 → ~₹60,000 tax (absurd).
+  // With relief: ₹12,75,001 → ₹1 tax (correct per Indian tax law).
+  //
+  // Rule: when taxable income just exceeds the rebate limit, the tax payable
+  // shall not exceed the amount by which income exceeds the rebate limit.
   let rebateApplied = false;
-  if (regime === 'new' && taxableIncome <= 1200000) {
+  let marginalReliefApplied = false;
+  let marginalReliefAmount = 0;
+
+  const rebateLimit = regime === 'new' ? 1200000 : 500000;
+
+  if (taxableIncome <= rebateLimit) {
     taxBeforeCess = 0;
     rebateApplied = true;
-  } else if (regime === 'old' && taxableIncome <= 500000) {
-    taxBeforeCess = 0;
-    rebateApplied = true;
+  } else {
+    // Marginal relief: tax cannot exceed the excess over rebate limit
+    const excessOverLimit = taxableIncome - rebateLimit;
+    if (taxBeforeCess > excessOverLimit) {
+      marginalReliefAmount = taxBeforeCess - excessOverLimit;
+      taxBeforeCess = excessOverLimit;
+      marginalReliefApplied = true;
+    }
   }
 
-  // Surcharge (applied on base tax before cess)
-  const surcharge = computeSurcharge(taxBeforeCess, taxableIncome, regime);
+  // ── Surcharge with MARGINAL RELIEF ─────────────────────────────────
+  // Prevents cliff at surcharge thresholds (₹50L, ₹1Cr, ₹2Cr).
+  // Rule: total (tax+surcharge) should not exceed (tax+surcharge at threshold) + excess.
+  const surcharge = computeSurchargeWithMarginalRelief(
+    taxBeforeCess, taxableIncome, regime, slabs
+  );
   const taxAfterSurcharge = taxBeforeCess + surcharge;
 
   // 4% Health & Education Cess (applied on tax + surcharge)
@@ -130,6 +196,8 @@ export function computeTax(annualIncome, regime = 'new') {
     effectiveRate,
     regime,
     rebateApplied,
+    marginalReliefApplied,
+    marginalReliefAmount: Math.round(marginalReliefAmount),
     surchargeApplied: surcharge > 0,
     surchargeAmount: Math.round(surcharge),
     cess: Math.round(cess),

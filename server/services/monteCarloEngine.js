@@ -134,32 +134,50 @@ export function runMonteCarlo({
   const allSimResults = yearsArray.map(() => []);
   const finalValues = []; // terminal balances for goal probability
 
-  for (let sim = 0; sim < simulations; sim++) {
-    let balance = 0;
+  // ── ANTITHETIC VARIATES ─────────────────────────────────────────────
+  // Variance reduction technique: for each random path using Z ~ N(0,1),
+  // we also run a mirror path using -Z. Since Cov(f(Z), f(-Z)) < 0,
+  // the estimator (f(Z) + f(-Z))/2 has lower variance than f(Z) alone.
+  // This approximately halves the estimation error for the same sim count.
+  const halfSims = Math.ceil(simulations / 2);
+  const actualSims = halfSims * 2;
+  const totalMonths = years * 12;
 
-    for (let y = 0; y < years; y++) {
-      for (let m = 0; m < 12; m++) {
-        // Add monthly SIP contribution
-        balance += monthlyInvestment;
-
-        // Apply GBM return: S(t+dt) = S(t) × exp(drift + vol × Z)
-        // Using exp() guarantees the growth factor is always positive,
-        // so balance can never go negative — no clamping needed.
-        const z = boxMuller();
-        const growthFactor = Math.exp(driftPerMonth + volPerMonth * z);
-        balance *= growthFactor;
-      }
-
-      // Record balance at end of each year
-      allSimResults[y].push(balance);
+  for (let sim = 0; sim < halfSims; sim++) {
+    // Pre-generate all Z values for this path pair
+    const zValues = new Array(totalMonths);
+    for (let i = 0; i < totalMonths; i++) {
+      zValues[i] = boxMuller();
     }
 
-    // Collect final-year balance for goal probability computation
-    finalValues.push(balance);
+    // ── Path 1: use +Z ──────────────────────────────────────────────
+    let balance1 = 0;
+    for (let y = 0; y < years; y++) {
+      for (let m = 0; m < 12; m++) {
+        balance1 += monthlyInvestment;
+        const z = zValues[y * 12 + m];
+        balance1 *= Math.exp(driftPerMonth + volPerMonth * z);
+      }
+      allSimResults[y].push(balance1);
+    }
+    finalValues.push(balance1);
+
+    // ── Path 2: use -Z (antithetic mirror) ──────────────────────────
+    let balance2 = 0;
+    for (let y = 0; y < years; y++) {
+      for (let m = 0; m < 12; m++) {
+        balance2 += monthlyInvestment;
+        const z = zValues[y * 12 + m];
+        balance2 *= Math.exp(driftPerMonth - volPerMonth * z);
+      }
+      allSimResults[y].push(balance2);
+    }
+    finalValues.push(balance2);
   }
 
   // Sort each year's results ONCE, then extract all percentiles
   const p10 = [], p25 = [], p50 = [], p75 = [], p90 = [], mean = [];
+  const stdErr = []; // standard error of the mean for convergence diagnostics
 
   for (let y = 0; y < years; y++) {
     const sorted = [...allSimResults[y]].sort((a, b) => a - b);
@@ -168,14 +186,20 @@ export function runMonteCarlo({
     p50.push(Math.round(percentile(sorted, 50)));
     p75.push(Math.round(percentile(sorted, 75)));
     p90.push(Math.round(percentile(sorted, 90)));
-    mean.push(Math.round(sorted.reduce((s, v) => s + v, 0) / sorted.length));
+    const avg = sorted.reduce((s, v) => s + v, 0) / sorted.length;
+    mean.push(Math.round(avg));
+    // Standard error = stdDev / √N (for convergence diagnostics)
+    const variance = sorted.reduce((s, v) => s + (v - avg) ** 2, 0) / (sorted.length - 1);
+    stdErr.push(Math.round(Math.sqrt(variance / sorted.length)));
   }
 
   return {
     years_array: yearsArray,
     p10, p25, p50, p75, p90, mean,
+    standard_error: stdErr,
     finalValues, // expose for goal probability reuse
-    simulations_run: simulations,
+    simulations_run: actualSims,
+    variance_reduction: 'antithetic_variates',
   };
 }
 

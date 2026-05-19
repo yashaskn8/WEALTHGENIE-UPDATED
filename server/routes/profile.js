@@ -53,8 +53,8 @@ router.post('/build', verifyJWT, validate(profileSchema), asyncHandler(async (re
   const marginalRate = getTaxSlab(annualIncome, taxRegime);
   const taxComparison = compareTaxRegimes(annualIncome);
 
-  // Compute risk profile
-  const riskProfile = getRiskProfile(age, annualIncome);
+  // Compute risk profile (now uses 3-factor model: age + income + horizon)
+  const riskProfile = getRiskProfile(age, annualIncome, investment_horizon);
 
   // Investable amount = monthly savings (pre-validated to be < income)
   const investableAmount = monthly_savings;

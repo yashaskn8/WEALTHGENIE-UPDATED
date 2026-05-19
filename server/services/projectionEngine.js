@@ -119,7 +119,8 @@ export function generateProjections(
   monthlyInvestment,
   instruments,
   postTaxRates,
-  years = [5, 10, 15, 20]
+  years = [5, 10, 15, 20],
+  inflationRate = 0.06
 ) {
   // Input guards
   if (!Number.isFinite(monthlyInvestment) || monthlyInvestment <= 0) {
@@ -128,10 +129,11 @@ export function generateProjections(
   if (!instruments || instruments.length === 0) {
     return { labels: years, series: [], totalInvested: {}, chartData: [] };
   }
+  if (!Number.isFinite(inflationRate) || inflationRate < 0) inflationRate = 0.06;
 
   const labels = [...years].filter(y => Number.isFinite(y) && y > 0);
 
-  // Total invested at each year mark
+  // Total invested at each year mark (nominal)
   const totalInvested = {};
   labels.forEach(y => {
     totalInvested[y] = monthlyInvestment * 12 * y;
@@ -155,13 +157,27 @@ export function generateProjections(
       console.warn(`[Projection] Zero effective rate for ${inst.name}. Chart will show flat-line (no growth).`);
     }
 
+    // Nominal projections
     const data = labels.map(y => Math.round(sipFV(monthlyInvestment, decimalRate, y)));
+
+    // Inflation-adjusted (real) projections
+    // Real rate: ((1 + nominal) / (1 + inflation)) - 1
+    const realRate = ((1 + decimalRate) / (1 + inflationRate)) - 1;
+    const realData = labels.map(y => Math.round(sipFV(monthlyInvestment, realRate, y)));
+
+    // Wealth multiplier: how many times your invested amount grows
+    const finalNominal = data[data.length - 1] || 0;
+    const finalInvested = totalInvested[labels[labels.length - 1]] || 1;
+    const wealthMultiplier = parseFloat((finalNominal / finalInvested).toFixed(2));
 
     return {
       name: inst.name,
       type: inst.type || 'Unknown',
       postTaxRate: parseFloat((decimalRate * 100).toFixed(2)),
+      realRate: parseFloat((realRate * 100).toFixed(2)),
       data,
+      realData,
+      wealthMultiplier,
     };
   });
 
@@ -170,6 +186,7 @@ export function generateProjections(
     const point = { year, invested: totalInvested[year] };
     series.forEach(s => {
       point[s.name] = s.data[idx];
+      point[`${s.name}_real`] = s.realData[idx];
     });
     return point;
   });
@@ -179,6 +196,7 @@ export function generateProjections(
     series,
     totalInvested,
     chartData,
+    inflationRate,
   };
 }
 
