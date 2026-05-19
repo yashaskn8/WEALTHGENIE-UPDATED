@@ -10,8 +10,13 @@ const router = Router();
  * Compute tax for a specific income and regime.
  */
 router.get('/compute', validateQuery(taxComputeSchema), asyncHandler(async (req, res) => {
-  const income = parseFloat(req.query.income);
+  // Joi coerces query strings to numbers via taxComputeSchema
+  const income = Number(req.query.income);
   const regime = req.query.regime || 'new';
+
+  if (!Number.isFinite(income) || income < 0) {
+    return res.status(400).json({ error: 'Income must be a valid positive number.' });
+  }
 
   const result = computeTax(income, regime);
   res.json(result);
@@ -22,7 +27,11 @@ router.get('/compute', validateQuery(taxComputeSchema), asyncHandler(async (req,
  * Compare both tax regimes and return the recommended one.
  */
 router.get('/compare', validateQuery(taxCompareSchema), asyncHandler(async (req, res) => {
-  const income = parseFloat(req.query.income);
+  const income = Number(req.query.income);
+
+  if (!Number.isFinite(income) || income < 0) {
+    return res.status(400).json({ error: 'Income must be a valid positive number.' });
+  }
 
   const { newRegime, oldRegime, recommended } = compareTaxRegimes(income);
 

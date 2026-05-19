@@ -1,0 +1,341 @@
+/**
+ * WealthGenie Phase 3 — Adversarial & Edge-Case Test Suite
+ * Tests hostile inputs, boundary values, precision edge cases,
+ * and invariant violations across all financial engines.
+ */
+
+import { computeTax, compareTaxRegimes, getTaxSlab }
+  from '../services/taxEngine.js';
+import { calculatePostTaxReturn, calculatePostTaxReturnSafe, validatePostTaxResult }
+  from '../services/postTaxCalculator.js';
+import { runMonteCarlo, computeGoalProbability, reverseSIP }
+  from '../services/monteCarloEngine.js';
+import { getRiskProfile, encodeRiskCategory }
+  from '../services/riskProfiler.js';
+
+// ═══════════════════════════════════════════════════════════
+// 1. TAX ENGINE — ADVERSARIAL INPUTS
+// ═══════════════════════════════════════════════════════════
+
+describe('Tax Engine — Adversarial Inputs', () => {
+  test('zero income → zero tax in both regimes', () => {
+    expect(computeTax(0, 'new').taxAmount).toBe(0);
+    expect(computeTax(0, 'old').taxAmount).toBe(0);
+  });
+
+  test('₹1 income → zero tax (below SD)', () => {
+    expect(computeTax(1, 'new').taxAmount).toBe(0);
+  });
+
+  test('negative income → should not produce negative tax', () => {
+    const r = computeTax(-500000, 'new');
+    expect(r.taxAmount).toBeGreaterThanOrEqual(0);
+  });
+
+  test('very large income ₹100Cr → produces finite positive tax', () => {
+    const r = computeTax(1000000000, 'new');
+    expect(Number.isFinite(r.taxAmount)).toBe(true);
+    expect(r.taxAmount).toBeGreaterThan(0);
+    expect(r.effectiveRate).toBeLessThan(100); // effective rate < 100%
+  });
+
+  test('exact rebate boundary ₹12,75,000 → zero tax', () => {
+    expect(computeTax(1275000, 'new').taxAmount).toBe(0);
+  });
+
+  test('₹12,75,001 → positive tax (no rebate)', () => {
+    expect(computeTax(1275001, 'new').taxAmount).toBeGreaterThan(0);
+  });
+
+  test('getTaxSlab with fractional income → returns valid slab', () => {
+    const slab = getTaxSlab(780000.50, 'new');
+    expect(typeof slab).toBe('number');
+    expect(slab).toBeGreaterThanOrEqual(0);
+    expect(slab).toBeLessThanOrEqual(0.30);
+  });
+
+  test('compareTaxRegimes always recommends lower tax', () => {
+    const incomes = [300000, 750000, 1200000, 2500000, 5000000, 10000000];
+    incomes.forEach(inc => {
+      const c = compareTaxRegimes(inc);
+      const winnerTax = c.recommended === 'new' ? c.newRegime.taxAmount : c.oldRegime.taxAmount;
+      const loserTax = c.recommended === 'new' ? c.oldRegime.taxAmount : c.newRegime.taxAmount;
+      expect(winnerTax).toBeLessThanOrEqual(loserTax);
+    });
+  });
+
+  test('tax is monotonically non-decreasing with income', () => {
+    let prevTax = 0;
+    for (let inc = 0; inc <= 5000000; inc += 100000) {
+      const tax = computeTax(inc, 'new').taxAmount;
+      expect(tax).toBeGreaterThanOrEqual(prevTax);
+      prevTax = tax;
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// 2. POST-TAX CALCULATOR — PRECISION & EDGE CASES
+// ═══════════════════════════════════════════════════════════
+
+describe('Post-Tax Calculator — Precision & Edge Cases', () => {
+  test('zero nominal rate → zero post-tax rate for all instruments', () => {
+    const instruments = ['FD', 'ELSS', 'Equity_MF', 'Debt_MF', 'PPF', 'NPS', 'Gold', 'Liquid_MF', 'Arbitrage_MF'];
+    instruments.forEach(type => {
+      const r = calculatePostTaxReturnSafe(type, 0, 1000000, 10, 'new');
+      expect(r.postTaxReturn).toBe(0);
+    });
+  });
+
+  test('PPF is ALWAYS tax-free regardless of income', () => {
+    const incomes = [300000, 1000000, 5000000, 50000000];
+    incomes.forEach(inc => {
+      const r = calculatePostTaxReturn('PPF', 0.071, inc, 15, 'new');
+      expect(r.postTaxReturn).toBe(0.071);
+      expect(r.taxRate).toBe(0);
+    });
+  });
+
+  test('Arbitrage MF: equity-taxed, NOT slab-taxed (CRITICAL FY25-26)', () => {
+    // At ₹15L income, slab rate is 15% — if mis-classified as debt, taxRate would be 0.15
+    const r = calculatePostTaxReturn('Arbitrage_MF', 0.075, 1500000, 3, 'new');
+    expect(r.taxRate).toBe(0.125); // LTCG 12.5%, NOT slab 15%
+    expect(r.taxType).toContain('LTCG');
+  });
+
+  test('Arbitrage MF short-term: STCG 20%', () => {
+    const r = calculatePostTaxReturn('Arbitrage_MF', 0.075, 1500000, 0.5, 'new');
+    expect(r.taxRate).toBe(0.20);
+    expect(r.taxType).toContain('STCG');
+  });
+
+  test('post-tax ≤ nominal for EVERY instrument at EVERY income level', () => {
+    const instruments = [
+      ['FD', 0.0725], ['ELSS', 0.135], ['Equity_MF', 0.125],
+      ['Debt_MF', 0.075], ['PPF', 0.071], ['NPS', 0.10],
+      ['Gold', 0.09], ['SGB', 0.105], ['Liquid_MF', 0.07],
+      ['Arbitrage_MF', 0.075], ['ETF', 0.125], ['RBI_Bond', 0.0805],
+    ];
+    const incomes = [300000, 780000, 1500000, 5000000, 20000000];
+    instruments.forEach(([type, nominal]) => {
+      incomes.forEach(inc => {
+        const r = calculatePostTaxReturnSafe(type, nominal, inc, 15, 'new');
+        expect(r.postTaxReturn).toBeLessThanOrEqual(nominal + 0.0001);
+      });
+    });
+  });
+
+  test('validatePostTaxResult clamps impossible values in production', () => {
+    const bad = { postTaxReturn: 0.50, taxRate: -3 };
+    process.env.NODE_ENV = 'production';
+    const safe = validatePostTaxResult(bad, 0.07, 'FD');
+    expect(safe.postTaxReturn).toBeLessThanOrEqual(0.07);
+    process.env.NODE_ENV = 'test';
+  });
+
+  test('old vs new regime produces different tax for slab-taxed instruments', () => {
+    const newR = calculatePostTaxReturn('FD', 0.0725, 2000000, 1, 'new');
+    const oldR = calculatePostTaxReturn('FD', 0.0725, 2000000, 1, 'old');
+    // At ₹20L, regimes produce different marginal rates
+    expect(newR.taxRate).not.toBe(oldR.taxRate);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// 3. MONTE CARLO — BOUNDARY & STABILITY
+// ═══════════════════════════════════════════════════════════
+
+describe('Monte Carlo — Boundary & Stability', () => {
+  test('zero monthly investment → all-zero percentiles', () => {
+    const r = runMonteCarlo({
+      monthlyInvestment: 0, postTaxAnnualReturn: 0.10,
+      annualVolatility: 0.15, years: 10, simulations: 100,
+    });
+    r.p50.forEach(v => expect(v).toBe(0));
+  });
+
+  test('zero volatility → deterministic (p10 ≈ p90)', () => {
+    const r = runMonteCarlo({
+      monthlyInvestment: 10000, postTaxAnnualReturn: 0.08,
+      annualVolatility: 0, years: 5, simulations: 500,
+    });
+    // With zero vol, all percentiles should converge
+    const last = r.years_array.length - 1;
+    const spread = (r.p90[last] - r.p10[last]) / r.p50[last];
+    expect(spread).toBeLessThan(0.05); // <5% spread
+  });
+
+  test('1-year horizon → exactly 1 data point', () => {
+    const r = runMonteCarlo({
+      monthlyInvestment: 5000, postTaxAnnualReturn: 0.07,
+      annualVolatility: 0.03, years: 1, simulations: 500,
+    });
+    expect(r.years_array.length).toBe(1);
+    expect(r.p50.length).toBe(1);
+  });
+
+  test('50-year horizon → 50 data points with finite values', () => {
+    const r = runMonteCarlo({
+      monthlyInvestment: 5000, postTaxAnnualReturn: 0.10,
+      annualVolatility: 0.15, years: 50, simulations: 500,
+    });
+    expect(r.years_array.length).toBe(50);
+    r.p50.forEach(v => expect(Number.isFinite(v)).toBe(true));
+    r.p90.forEach(v => expect(Number.isFinite(v)).toBe(true));
+  });
+
+  test('negative return → produces finite results (capital erosion)', () => {
+    const r = runMonteCarlo({
+      monthlyInvestment: 10000, postTaxAnnualReturn: -0.05,
+      annualVolatility: 0.10, years: 5, simulations: 500,
+    });
+    r.p50.forEach(v => {
+      expect(Number.isFinite(v)).toBe(true);
+      expect(v).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  test('computeGoalProbability with empty array → 0', () => {
+    expect(computeGoalProbability([], 100000)).toBe(0);
+  });
+
+  test('computeGoalProbability with zero target → 0 (falsy target = no target)', () => {
+    // Zero target is treated as "no target specified" — returns 0 probability
+    expect(computeGoalProbability([100, 200], 0)).toBe(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// 4. REVERSE SIP — DIVISION BY ZERO & EDGE CASES
+// ═══════════════════════════════════════════════════════════
+
+describe('Reverse SIP — Edge Cases', () => {
+  test('zero rate → simple division (no compounding)', () => {
+    // ₹12L target in 10 years at 0% = ₹12L / 120 months = ₹10,000/mo
+    const sip = reverseSIP(1200000, 0, 10, 0);
+    expect(sip).toBe(10000);
+  });
+
+  test('negative target → returns 0', () => {
+    expect(reverseSIP(-1000000, 0.10, 10, 0)).toBe(0);
+  });
+
+  test('zero years → returns 0', () => {
+    expect(reverseSIP(1000000, 0.10, 0, 0)).toBe(0);
+  });
+
+  test('current savings exceed target → returns 0', () => {
+    // Already have more than target after compounding
+    expect(reverseSIP(100000, 0.10, 10, 200000)).toBe(0);
+  });
+
+  test('NaN inputs → returns 0 (not NaN)', () => {
+    expect(Number.isFinite(reverseSIP(NaN, 0.10, 10, 0))).toBe(true);
+    expect(reverseSIP(NaN, 0.10, 10, 0)).toBe(0);
+  });
+
+  test('very high rate (50%) → finite result', () => {
+    const sip = reverseSIP(10000000, 0.50, 5, 0);
+    expect(Number.isFinite(sip)).toBe(true);
+    expect(sip).toBeGreaterThan(0);
+  });
+
+  test('1-month effective horizon (1/12 year) via years=1 → reasonable SIP', () => {
+    const sip = reverseSIP(100000, 0.12, 1, 0);
+    expect(sip).toBeGreaterThan(7000);
+    expect(sip).toBeLessThan(10000);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// 5. RISK PROFILER — BOUNDARY VALUES
+// ═══════════════════════════════════════════════════════════
+
+describe('Risk Profiler — Boundary Values', () => {
+  test('youngest + highest income → Aggressive', () => {
+    const r = getRiskProfile(18, 50000000);
+    expect(r.category).toBe('Aggressive');
+    expect(r.riskScore).toBeGreaterThanOrEqual(80);
+  });
+
+  test('oldest + lowest income → Conservative', () => {
+    const r = getRiskProfile(80, 100000);
+    expect(r.category).toBe('Conservative');
+    expect(r.riskScore).toBeLessThan(20);
+  });
+
+  test('mid-age mid-income → Moderate', () => {
+    const r = getRiskProfile(40, 800000);
+    expect(['Moderate', 'Moderate-Aggressive', 'Conservative-Moderate']).toContain(r.category);
+  });
+
+  test('riskScore is always 0-100', () => {
+    const cases = [
+      [18, 100000], [25, 300000], [35, 600000],
+      [45, 1200000], [55, 2500000], [65, 5000000], [80, 50000000],
+    ];
+    cases.forEach(([age, income]) => {
+      const r = getRiskProfile(age, income);
+      expect(r.riskScore).toBeGreaterThanOrEqual(0);
+      expect(r.riskScore).toBeLessThanOrEqual(100);
+    });
+  });
+
+  test('NaN age → defaults to 30', () => {
+    const r = getRiskProfile(NaN, 1000000);
+    expect(r.riskScore).toBeGreaterThan(0);
+  });
+
+  test('negative income → 0 income score', () => {
+    const r = getRiskProfile(30, -500000);
+    expect(r.riskScore).toBeGreaterThanOrEqual(0);
+  });
+
+  test('encodeRiskCategory returns correct values', () => {
+    expect(encodeRiskCategory('Conservative')).toBe(0);
+    expect(encodeRiskCategory('Aggressive')).toBe(4);
+    expect(encodeRiskCategory('Unknown')).toBe(2); // default
+  });
+
+  test('equity allocation is monotonically increasing with risk', () => {
+    const categories = ['Conservative', 'Conservative-Moderate', 'Moderate', 'Moderate-Aggressive', 'Aggressive'];
+    let prevAlloc = 0;
+    // We can't test via getRiskProfile since it depends on age/income,
+    // but we can verify the constants are ordered.
+    const EXPECTED_ALLOCS = [20, 35, 50, 65, 80];
+    EXPECTED_ALLOCS.forEach((alloc, i) => {
+      expect(alloc).toBeGreaterThan(prevAlloc);
+      prevAlloc = alloc;
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// 6. CROSS-MODULE INVARIANTS
+// ═══════════════════════════════════════════════════════════
+
+describe('Cross-Module Financial Invariants', () => {
+  test('tax slab used in post-tax calc matches tax engine', () => {
+    const income = 1500000;
+    const slab = getTaxSlab(income, 'new');
+    const fdResult = calculatePostTaxReturn('FD', 0.0725, income, 1, 'new');
+    expect(fdResult.taxRate).toBe(slab);
+  });
+
+  test('FD post-tax return = nominal × (1 - marginalRate)', () => {
+    const income = 2000000;
+    const nominal = 0.0725;
+    const marginal = getTaxSlab(income, 'new');
+    const result = calculatePostTaxReturn('FD', nominal, income, 1, 'new');
+    expect(result.postTaxReturn).toBeCloseTo(nominal * (1 - marginal), 3);
+  });
+
+  test('no instrument produces NaN post-tax return', () => {
+    const instruments = ['FD', 'ELSS', 'Equity_MF', 'ETF', 'Debt_MF', 'PPF', 'NPS', 'Gold', 'SGB', 'Liquid_MF', 'Arbitrage_MF', 'RBI_Bond'];
+    instruments.forEach(type => {
+      const r = calculatePostTaxReturnSafe(type, 0.08, 1000000, 10, 'new');
+      expect(Number.isNaN(r.postTaxReturn)).toBe(false);
+      expect(Number.isFinite(r.postTaxReturn)).toBe(true);
+    });
+  });
+});

@@ -86,14 +86,18 @@ router.post('/create', verifyJWT, validate(goalSchema), asyncHandler(async (req,
 
   // Invariant: target_date must be at least 6 months in the future
   // (shorter horizons produce statistically meaningless Monte Carlo results)
-  const msRemaining = targetDateObj - now;
-  if (msRemaining < 6 * 30 * 24 * 60 * 60 * 1000) {
+  // IMPORTANT: This check must use the SAME logic as goalSchema's target_date validator
+  // (setMonth + 6) to prevent dates that pass schema but fail here, or vice versa.
+  const sixMonthsFromNow = new Date();
+  sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
+  if (targetDateObj < sixMonthsFromNow) {
     throw createError(400,
-      `Goal target_date too close: ${target_date}`,
+      `Goal target_date too close: ${target_date} (minimum: ${sixMonthsFromNow.toISOString()})`,
       'Target date must be at least 6 months from today for meaningful projections.'
     );
   }
 
+  const msRemaining = targetDateObj - now;
   const yearsRemaining = Math.max(1, Math.round(msRemaining / (365.25 * 24 * 60 * 60 * 1000)));
 
   // Guard: if yearsRemaining is somehow NaN (invalid date), reject
