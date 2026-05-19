@@ -57,8 +57,8 @@ Paragraph 3: Provide ONE specific, actionable next step the investor should take
 Use simple English. Reference specific numbers from the profile. Do not use bullet points. Keep it warm and professional.`;
 
   try {
-    const apiKey = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY; // Fallback to GEMINI_API_KEY var name if they forgot to change it
-    if (!apiKey) return { text: 'Groq API key not configured. Please set GROQ_API_KEY in your .env file.', cached: false };
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) return { text: 'Advisory service not configured. Please set GROQ_API_KEY in your .env file.', cached: false };
 
     const response = await axios.post(GROQ_API_URL, {
       model: MODEL_NAME,
@@ -86,7 +86,8 @@ Use simple English. Reference specific numbers from the profile. Do not use bull
 }
 
 function getFallbackAdvisory({ age, riskCategory, instruments }) {
-  const topInst = instruments[0]?.name || 'diversified instruments';
+  const safeInstruments = Array.isArray(instruments) ? instruments : [];
+  const topInst = safeInstruments[0]?.name || 'diversified instruments';
   return `Based on your profile as a ${age}-year-old ${riskCategory} investor, ${topInst} aligns well with your financial goals. The recommended instruments balance growth potential with your risk tolerance, optimizing for post-tax returns under the current Indian tax regime.\n\nKey risks include market volatility affecting equity-linked instruments, interest rate changes impacting fixed-income returns, and inflation eroding purchasing power over your investment horizon. Diversification across the recommended instruments helps mitigate these risks.\n\nAs an immediate next step, consider starting a monthly SIP in your top-recommended instrument to benefit from rupee cost averaging and begin building your wealth systematically.`;
 }
 

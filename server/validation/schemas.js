@@ -73,8 +73,7 @@ export const monteCarloSchema = Joi.object({
   instrument: Joi.string().valid(...VALID_INSTRUMENTS).required(),
   monthly_investment: Joi.number().min(500).max(10000000).required(),
   years: Joi.number().integer().min(1).max(40).required(),
-  target_amount: Joi.number().min(0).optional(),
-  post_tax_rate: Joi.number().min(0).max(1).optional(),
+  target_amount: Joi.number().min(1000).max(10000000000).optional(),
   profileId: objectId.optional(),
 });
 
